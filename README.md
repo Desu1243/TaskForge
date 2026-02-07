@@ -1,6 +1,6 @@
 # taskforge
 
-My to do list app
+A new Flutter project.
 
 ## Getting Started
 

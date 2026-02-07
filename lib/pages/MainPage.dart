@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:taskforge/pages/DailiesPage.dart';
 import 'package:taskforge/pages/HabitsPage.dart';
 import 'package:taskforge/pages/ToDosPage.dart';
+import 'package:taskforge/pages/SettingsPage.dart';
 
 import '../themes/DefaultTheme.dart';
 
@@ -34,7 +35,7 @@ class _MainPageState extends State<MainPage> {
             currentPage = value;
           });
         },
-        children: const [HabitsPage(), DailiesPage(), ToDosPage(), ToDosPage()],
+        children: const [HabitsPage(), DailiesPage(), ToDosPage(), SettingsPage()],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: Transform(
@@ -71,8 +72,8 @@ class _MainPageState extends State<MainPage> {
             children: [
               OutlinedButton(
                   style: const ButtonStyle(
-                      shape: MaterialStatePropertyAll(LinearBorder()),
-                    padding: MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
+                      shape: WidgetStatePropertyAll(LinearBorder()),
+                    padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
                   ),
                   onPressed: () {
                     setState(() {
@@ -91,8 +92,8 @@ class _MainPageState extends State<MainPage> {
                   )),
               OutlinedButton(
                   style: const ButtonStyle(
-                    shape: MaterialStatePropertyAll(LinearBorder()),
-                    padding: MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
+                    shape: WidgetStatePropertyAll(LinearBorder()),
+                    padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
                   ),
                   onPressed: () {
                     setState(() {
@@ -114,8 +115,8 @@ class _MainPageState extends State<MainPage> {
               ),
               OutlinedButton(
                   style: const ButtonStyle(
-                      shape: MaterialStatePropertyAll(LinearBorder()),
-    padding: MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
+                      shape: WidgetStatePropertyAll(LinearBorder()),
+                      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
                   ),
                   onPressed: () {
                     setState(() {
@@ -134,8 +135,8 @@ class _MainPageState extends State<MainPage> {
                   )),
               OutlinedButton(
                   style: const ButtonStyle(
-                      shape: MaterialStatePropertyAll(LinearBorder()),
-    padding: MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
+                      shape: WidgetStatePropertyAll(LinearBorder()),
+                      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 0, vertical: 12)),
                   ),
                   onPressed: () {
                     setState(() {

@@ -24,7 +24,7 @@ final ThemeData myTheme = ThemeData(
     )
   ),
 
-  bottomAppBarTheme: BottomAppBarTheme(
+  bottomAppBarTheme: BottomAppBarThemeData(
     color: DefaultTheme.backgroundPurple
   ),
 
