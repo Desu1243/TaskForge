@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
 
 class AddTaskPage extends StatefulWidget {
-  const AddTaskPage({required this.taskType, super.key});
+  const AddTaskPage({required this.taskType, this.task, super.key});
 
   final TaskType taskType;
+  final Task? task;
 
   @override
   State<AddTaskPage> createState() => _AddTaskPageState();
@@ -44,11 +45,61 @@ class _AddTaskPageState extends State<AddTaskPage> {
   bool _positiveCounterEnabled = true;
   bool _negativeCounterEnabled = true;
 
+  bool get _isEditing => widget.task != null;
+
   String get _typeName => switch (widget.taskType) {
     TaskType.habit => 'habit',
     TaskType.daily => 'daily',
     TaskType.todo => 'to-do',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    final task = widget.task;
+    if (task == null) return;
+
+    assert(task.type == widget.taskType);
+    _titleController.text = task.title;
+    _notesController.text = task.notes;
+
+    final schedule = task.schedule;
+    if (schedule is TodoSchedule) {
+      _dueDate = schedule.dueDate;
+    } else if (schedule is DailySchedule) {
+      _activeWeekdays
+        ..clear()
+        ..addAll(schedule.activeWeekdays);
+    } else if (schedule is HabitSchedule) {
+      _activeWeekdays
+        ..clear()
+        ..addAll(schedule.activeWeekdays);
+      _targetController.text = schedule.targetCount.toString();
+      _habitPeriod = schedule.period;
+    }
+
+    final reminder = task.reminder;
+    if (reminder != null) {
+      _reminderEnabled = true;
+      _reminderTime = TimeOfDay(
+        hour: reminder.time.hour,
+        minute: reminder.time.minute,
+      );
+      _reminderTitleController.text = reminder.title;
+      _reminderMessageController.text = reminder.message;
+      if (reminder.activeWeekdays != null) {
+        _reminderWeekdays
+          ..clear()
+          ..addAll(reminder.activeWeekdays!);
+      }
+    }
+
+    final counters = task.habitCounters;
+    if (counters != null) {
+      _positiveCounterEnabled = counters.positiveEnabled;
+      _negativeCounterEnabled = counters.negativeEnabled;
+    }
+  }
 
   @override
   void dispose() {
@@ -64,7 +115,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final date = await showDatePicker(
       context: context,
       initialDate: _dueDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
+      firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
     if (date != null) setState(() => _dueDate = date);
@@ -114,10 +165,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ),
     };
 
+    final editedTask = widget.task;
     Navigator.pop(
       context,
       Task(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: editedTask?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         type: widget.taskType,
         title: _titleController.text.trim(),
         notes: _notesController.text.trim(),
@@ -143,6 +195,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     : reminderDays,
               )
             : null,
+        isCompleted: editedTask?.isCompleted ?? false,
+        lastCompletedDate: editedTask?.lastCompletedDate,
+        positiveCount: editedTask?.positiveCount ?? 0,
+        negativeCount: editedTask?.negativeCount ?? 0,
       ),
     );
   }
@@ -151,7 +207,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('New $_typeName'),
+        title: Text('${_isEditing ? 'Edit' : 'New'} $_typeName'),
         actions: [TextButton(onPressed: _save, child: const Text('Save'))],
       ),
       body: Form(
@@ -161,7 +217,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
           children: [
             TextFormField(
               controller: _titleController,
-              autofocus: true,
+              autofocus: !_isEditing,
               decoration: const InputDecoration(
                 labelText: 'Title',
                 border: OutlineInputBorder(),

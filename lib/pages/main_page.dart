@@ -49,6 +49,22 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
+  Future<void> editTask(Task task) async {
+    final editedTask = await Navigator.push<Task>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddTaskPage(taskType: task.type, task: task),
+      ),
+    );
+    if (editedTask == null || !mounted) return;
+
+    final taskList = tasks[task.type]!;
+    final index = taskList.indexWhere((element) => element.id == task.id);
+    if (index != -1) {
+      setState(() => taskList[index] = editedTask);
+    }
+  }
+
   @override
   void dispose() {
     controller.dispose();
@@ -70,14 +86,17 @@ class _MainPageState extends State<MainPage> {
           HabitsPage(
             tasks: tasks[TaskType.habit]!,
             onChanged: () => setState(() {}),
+            onEdit: editTask,
           ),
           DailiesPage(
             tasks: tasks[TaskType.daily]!,
             onChanged: () => setState(() {}),
+            onEdit: editTask,
           ),
           ToDosPage(
             tasks: tasks[TaskType.todo]!,
             onChanged: () => setState(() {}),
+            onEdit: editTask,
           ),
           const SettingsPage(),
         ],

@@ -1,19 +1,148 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
-import 'package:taskforge/widgets/task_list.dart';
+import 'package:taskforge/themes/DefaultTheme.dart';
 
 class ToDosPage extends StatelessWidget {
-  const ToDosPage({required this.tasks, required this.onChanged, super.key});
+  const ToDosPage({
+    required this.tasks,
+    required this.onChanged,
+    required this.onEdit,
+    super.key,
+  });
 
   final List<Task> tasks;
   final VoidCallback onChanged;
+  final ValueChanged<Task> onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return TaskList(
-      tasks: tasks,
-      emptyLabel: 'No to-dos yet. Tap + to create one.',
-      onChanged: onChanged,
+    if (tasks.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'No to-dos yet. Tap + to create one.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 96),
+      itemCount: tasks.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) =>
+          _TodoTile(task: tasks[index], onChanged: onChanged, onEdit: onEdit),
+    );
+  }
+}
+
+class _TodoTile extends StatelessWidget {
+  const _TodoTile({
+    required this.task,
+    required this.onChanged,
+    required this.onEdit,
+  });
+
+  final Task task;
+  final VoidCallback onChanged;
+  final ValueChanged<Task> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = task.isCompleted;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: task.notes.isEmpty ? 72 : 88,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: isCompleted
+                  ? DefaultTheme.darkPurple
+                  : DefaultTheme.yellow,
+              child: InkWell(
+                onTap: () {
+                  task.isCompleted = !isCompleted;
+                  onChanged();
+                },
+                child: SizedBox(
+                  width: 52,
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? DefaultTheme.gray
+                            : DefaultTheme.darkYellow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check,
+                              size: 19,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Material(
+                color: DefaultTheme.darkPurple,
+                child: InkWell(
+                  onTap: () => onEdit(task),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          task.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isCompleted
+                                ? DefaultTheme.lightGray.withValues(alpha: 0.65)
+                                : DefaultTheme.fullWhite,
+                          ),
+                        ),
+                        if (task.notes.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            task.notes,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: DefaultTheme.lightGray.withValues(
+                                alpha: 0.75,
+                              ),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
