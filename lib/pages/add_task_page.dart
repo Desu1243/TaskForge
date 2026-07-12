@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
 
 class AddTaskPage extends StatefulWidget {
-  const AddTaskPage({required this.taskType, this.task, super.key});
+  const AddTaskPage({
+    required this.taskType,
+    required this.settings,
+    this.task,
+    super.key,
+  });
 
   final TaskType taskType;
+  final AppSettings settings;
   final Task? task;
 
   @override
@@ -56,6 +63,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   @override
   void initState() {
     super.initState();
+    _reminderTime = widget.settings.defaultReminderTime;
     final task = widget.task;
     if (task == null) return;
 
@@ -252,8 +260,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Enable reminder'),
+              subtitle: widget.settings.notificationsEnabled
+                  ? null
+                  : const Text('Notifications are disabled in Settings'),
               value: _reminderEnabled,
-              onChanged: (value) => setState(() => _reminderEnabled = value),
+              onChanged: widget.settings.notificationsEnabled
+                  ? (value) => setState(() => _reminderEnabled = value)
+                  : null,
             ),
             if (_reminderEnabled) ...[
               if (widget.taskType != TaskType.todo) ...[

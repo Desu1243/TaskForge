@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
-import 'package:taskforge/themes/DefaultTheme.dart';
+import 'package:taskforge/themes/default_theme.dart';
 
 class ToDosPage extends StatelessWidget {
   const ToDosPage({
@@ -52,6 +52,7 @@ class _TodoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isCompleted = task.isCompleted;
 
     return ClipRRect(
@@ -63,7 +64,7 @@ class _TodoTile extends StatelessWidget {
           children: [
             Material(
               color: isCompleted
-                  ? DefaultTheme.darkPurple
+                  ? colors.surfaceContainer
                   : DefaultTheme.yellow,
               child: InkWell(
                 onTap: () {
@@ -97,7 +98,7 @@ class _TodoTile extends StatelessWidget {
             ),
             Expanded(
               child: Material(
-                color: DefaultTheme.darkPurple,
+                color: colors.surfaceContainer,
                 child: InkWell(
                   onTap: () => onEdit(task),
                   child: Container(
@@ -116,8 +117,10 @@ class _TodoTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: isCompleted
-                                ? DefaultTheme.lightGray.withValues(alpha: 0.65)
-                                : DefaultTheme.fullWhite,
+                                ? colors.onSurfaceVariant.withValues(
+                                    alpha: 0.65,
+                                  )
+                                : colors.onSurface,
                           ),
                         ),
                         if (task.notes.isNotEmpty) ...[
@@ -127,7 +130,7 @@ class _TodoTile extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: DefaultTheme.lightGray.withValues(
+                              color: colors.onSurfaceVariant.withValues(
                                 alpha: 0.75,
                               ),
                               fontSize: 12,

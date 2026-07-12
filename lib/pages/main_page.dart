@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
 import 'package:taskforge/pages/add_task_page.dart';
 import 'package:taskforge/pages/dailies_page.dart';
@@ -6,10 +7,10 @@ import 'package:taskforge/pages/habits_page.dart';
 import 'package:taskforge/pages/to_dos_page.dart';
 import 'package:taskforge/pages/settings_page.dart';
 
-import '../themes/DefaultTheme.dart';
-
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  const MainPage({required this.settings, super.key});
+
+  final AppSettings settings;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -22,12 +23,19 @@ class _MainPageState extends State<MainPage> {
     TaskType.daily: [],
     TaskType.todo: [],
   };
-  int currentPage = 0;
+  late int currentPage;
+  late final PageController controller;
 
-  final PageController controller = PageController(
-    initialPage: 0,
-    keepPage: true,
-  );
+  @override
+  void initState() {
+    super.initState();
+    currentPage = switch (widget.settings.launchScreen) {
+      LaunchScreen.habits => 0,
+      LaunchScreen.dailies => 1,
+      LaunchScreen.todos => 2,
+    };
+    controller = PageController(initialPage: currentPage, keepPage: true);
+  }
 
   TaskType? get currentTaskType => switch (currentPage) {
     0 => TaskType.habit,
@@ -42,7 +50,10 @@ class _MainPageState extends State<MainPage> {
 
     final task = await Navigator.push<Task>(
       context,
-      MaterialPageRoute(builder: (context) => AddTaskPage(taskType: taskType)),
+      MaterialPageRoute(
+        builder: (context) =>
+            AddTaskPage(taskType: taskType, settings: widget.settings),
+      ),
     );
     if (task != null && mounted) {
       setState(() => tasks[task.type]!.add(task));
@@ -53,7 +64,11 @@ class _MainPageState extends State<MainPage> {
     final editedTask = await Navigator.push<Task>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddTaskPage(taskType: task.type, task: task),
+        builder: (context) => AddTaskPage(
+          taskType: task.type,
+          settings: widget.settings,
+          task: task,
+        ),
       ),
     );
     if (editedTask == null || !mounted) return;
@@ -73,6 +88,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(pageTitles[currentPage])),
       body: PageView(
@@ -98,28 +114,29 @@ class _MainPageState extends State<MainPage> {
             onChanged: () => setState(() {}),
             onEdit: editTask,
           ),
-          const SettingsPage(),
+          SettingsPage(settings: widget.settings),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: currentTaskType == null
-          ? null
-          : Transform(
-              transform: Matrix4.rotationZ(45 * 3.1415927 / 180),
-              alignment: FractionalOffset.center,
-              child: FloatingActionButton(
-                onPressed: addTask,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(5)),
-                ),
-                elevation: 0.0,
-                child: const Icon(
-                  Icons.clear_rounded,
-                  size: 45,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+      floatingActionButton: Transform(
+        transform: Matrix4.rotationZ(45 * 3.1415927 / 180),
+        alignment: FractionalOffset.center,
+        child: FloatingActionButton(
+          onPressed: currentTaskType == null ? null : addTask,
+          backgroundColor: currentTaskType == null ? colors.outline : null,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(5)),
+          ),
+          elevation: 0.0,
+          child: Icon(
+            Icons.clear_rounded,
+            size: 45,
+            color: currentTaskType == null
+                ? colors.onSurfaceVariant
+                : Colors.white,
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomAppBar(
         elevation: 0,
         padding: const EdgeInsets.all(0),
@@ -151,25 +168,28 @@ class _MainPageState extends State<MainPage> {
               child: Column(
                 children: [
                   currentPage == 0
-                      ? const Icon(
+                      ? Icon(
                           Icons.add_box_rounded,
                           size: 32,
-                          color: Colors.white,
+                          color: colors.onSurface,
                         )
                       : Icon(
                           Icons.add_box_outlined,
                           size: 32,
-                          color: DefaultTheme.gray,
+                          color: colors.onSurfaceVariant,
                         ),
                   currentPage == 0
-                      ? const Text(
+                      ? Text(
                           "Habits",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 12,
+                          ),
                         )
                       : Text(
                           "Habits",
                           style: TextStyle(
-                            color: DefaultTheme.gray,
+                            color: colors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -195,25 +215,28 @@ class _MainPageState extends State<MainPage> {
               child: Column(
                 children: [
                   currentPage == 1
-                      ? const Icon(
+                      ? Icon(
                           Icons.calendar_month_rounded,
                           size: 32,
-                          color: Colors.white,
+                          color: colors.onSurface,
                         )
                       : Icon(
                           Icons.calendar_month_outlined,
                           size: 32,
-                          color: DefaultTheme.gray,
+                          color: colors.onSurfaceVariant,
                         ),
                   currentPage == 1
-                      ? const Text(
+                      ? Text(
                           "Dailies",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 12,
+                          ),
                         )
                       : Text(
                           "Dailies",
                           style: TextStyle(
-                            color: DefaultTheme.gray,
+                            color: colors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -240,25 +263,28 @@ class _MainPageState extends State<MainPage> {
               child: Column(
                 children: [
                   currentPage == 2
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
                           size: 32,
-                          color: Colors.white,
+                          color: colors.onSurface,
                         )
                       : Icon(
                           Icons.check_circle_outline_rounded,
                           size: 32,
-                          color: DefaultTheme.gray,
+                          color: colors.onSurfaceVariant,
                         ),
                   currentPage == 2
-                      ? const Text(
+                      ? Text(
                           "To-do's",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 12,
+                          ),
                         )
                       : Text(
                           "To-do's",
                           style: TextStyle(
-                            color: DefaultTheme.gray,
+                            color: colors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -284,25 +310,24 @@ class _MainPageState extends State<MainPage> {
               child: Column(
                 children: [
                   currentPage == 3
-                      ? const Icon(
-                          Icons.settings,
-                          size: 32,
-                          color: Colors.white,
-                        )
+                      ? Icon(Icons.settings, size: 32, color: colors.onSurface)
                       : Icon(
                           Icons.settings_outlined,
                           size: 32,
-                          color: DefaultTheme.gray,
+                          color: colors.onSurfaceVariant,
                         ),
                   currentPage == 3
-                      ? const Text(
+                      ? Text(
                           "Settings",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.onSurface,
+                            fontSize: 12,
+                          ),
                         )
                       : Text(
                           "Settings",
                           style: TextStyle(
-                            color: DefaultTheme.gray,
+                            color: colors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),

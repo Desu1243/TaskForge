@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-class DefaultTheme{
+class DefaultTheme {
   static Color backgroundPurple = const Color(0xFF1D181E);
   static Color darkPurple = const Color(0xFF251F29);
   static Color accentPurple = const Color(0xFF37313B);
@@ -15,5 +15,4 @@ class DefaultTheme{
   static Color darkRed = const Color(0xFFE83939);
   static Color gray = const Color(0xFF595860);
   static Color fullWhite = const Color(0xFFFFFFFF);
-
 }

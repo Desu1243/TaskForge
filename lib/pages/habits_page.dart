@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
-import 'package:taskforge/themes/DefaultTheme.dart';
+import 'package:taskforge/themes/default_theme.dart';
 
 class HabitsPage extends StatelessWidget {
   const HabitsPage({
@@ -76,6 +76,7 @@ class _HabitTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final counters =
         task.habitCounters ??
         const HabitCounters(positiveEnabled: true, negativeEnabled: true);
@@ -103,7 +104,7 @@ class _HabitTile extends StatelessWidget {
             ),
             Expanded(
               child: Material(
-                color: DefaultTheme.darkPurple,
+                color: colors.surfaceContainer,
                 child: InkWell(
                   onTap: () => onEdit(task),
                   child: Container(
@@ -119,7 +120,7 @@ class _HabitTile extends StatelessWidget {
                           task.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: DefaultTheme.fullWhite),
+                          style: TextStyle(color: colors.onSurface),
                         ),
                         if (task.notes.isNotEmpty) ...[
                           const SizedBox(height: 3),
@@ -128,7 +129,7 @@ class _HabitTile extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: DefaultTheme.lightGray,
+                              color: colors.onSurfaceVariant,
                               fontSize: 11,
                             ),
                           ),
@@ -140,7 +141,7 @@ class _HabitTile extends StatelessWidget {
                             child: Text(
                               _counterLabel(counters),
                               style: TextStyle(
-                                color: DefaultTheme.lightGray.withValues(
+                                color: colors.onSurfaceVariant.withValues(
                                   alpha: 0.65,
                                 ),
                                 fontSize: 11,
@@ -191,10 +192,11 @@ class _HabitCounterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: enabled ? color : DefaultTheme.accentPurple,
+        color: enabled ? color : colors.surfaceContainerHigh,
         child: InkWell(
           onTap: enabled ? onTap : null,
           child: SizedBox(
@@ -204,10 +206,14 @@ class _HabitCounterButton extends StatelessWidget {
                 width: 29,
                 height: 29,
                 decoration: BoxDecoration(
-                  color: enabled ? iconColor : DefaultTheme.gray,
+                  color: enabled ? iconColor : colors.outline,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: DefaultTheme.fullWhite, size: 23),
+                child: Icon(
+                  icon,
+                  color: enabled ? Colors.white : colors.onSurfaceVariant,
+                  size: 23,
+                ),
               ),
             ),
           ),

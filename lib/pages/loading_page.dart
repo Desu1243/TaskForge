@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:taskforge/models/app_settings.dart';
 
 import 'main_page.dart';
 
 class LoadingPage extends StatefulWidget {
-  const LoadingPage({super.key});
+  const LoadingPage({required this.settings, super.key});
+
+  final AppSettings settings;
 
   @override
   State<LoadingPage> createState() => _LoadingPageState();
 }
 
 class _LoadingPageState extends State<LoadingPage> {
-
   Future<void> getAppData() async {
-    /// get data from files
-    await Future.delayed(Duration(seconds: 1));
+    // Task data will be loaded here once persistent task storage is added.
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
 
-    if(context.mounted){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainPage()));
-    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MainPage(settings: widget.settings),
+      ),
+    );
   }
 
   @override
@@ -28,14 +34,6 @@ class _LoadingPageState extends State<LoadingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          color: Colors.cyan,
-          width: 100,
-          height: 100,
-        ),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

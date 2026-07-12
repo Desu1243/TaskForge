@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
-import 'package:taskforge/themes/DefaultTheme.dart';
+import 'package:taskforge/themes/default_theme.dart';
 
 class DailiesPage extends StatelessWidget {
   const DailiesPage({
@@ -52,6 +52,7 @@ class _DailyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final isCompleted = task.isCompletedOn(today);
     final schedule = task.schedule;
@@ -59,7 +60,7 @@ class _DailyTile extends StatelessWidget {
         schedule is DailySchedule &&
         schedule.activeWeekdays.contains(today.weekday);
     final controlColor = isCompleted
-        ? DefaultTheme.darkPurple
+        ? colors.surfaceContainer
         : isActiveToday
         ? DefaultTheme.yellow
         : DefaultTheme.gray;
@@ -67,7 +68,7 @@ class _DailyTile extends StatelessWidget {
         ? DefaultTheme.gray
         : isActiveToday
         ? DefaultTheme.darkYellow
-        : DefaultTheme.accentPurple;
+        : colors.surfaceContainerHigh;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -110,7 +111,7 @@ class _DailyTile extends StatelessWidget {
             ),
             Expanded(
               child: Material(
-                color: DefaultTheme.darkPurple,
+                color: colors.surfaceContainer,
                 child: InkWell(
                   onTap: () => onEdit(task),
                   child: _DailyContent(task: task, isCompleted: isCompleted),
@@ -132,6 +133,7 @@ class _DailyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       alignment: Alignment.centerLeft,
@@ -145,8 +147,8 @@ class _DailyContent extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: isCompleted
-                  ? DefaultTheme.lightGray.withValues(alpha: 0.65)
-                  : DefaultTheme.fullWhite,
+                  ? colors.onSurfaceVariant.withValues(alpha: 0.65)
+                  : colors.onSurface,
             ),
           ),
           if (task.notes.isNotEmpty) ...[
@@ -156,7 +158,7 @@ class _DailyContent extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: DefaultTheme.lightGray.withValues(alpha: 0.75),
+                color: colors.onSurfaceVariant.withValues(alpha: 0.75),
                 fontSize: 12,
               ),
             ),
