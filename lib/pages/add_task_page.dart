@@ -41,6 +41,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   HabitPeriod _habitPeriod = HabitPeriod.week;
   bool _reminderEnabled = false;
+  bool _positiveCounterEnabled = true;
+  bool _negativeCounterEnabled = true;
 
   String get _typeName => switch (widget.taskType) {
     TaskType.habit => 'habit',
@@ -93,6 +95,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
       );
       return;
     }
+    if (widget.taskType == TaskType.habit &&
+        !_positiveCounterEnabled &&
+        !_negativeCounterEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enable at least one habit counter.')),
+      );
+      return;
+    }
 
     final schedule = switch (widget.taskType) {
       TaskType.todo => TodoSchedule(dueDate: _dueDate),
@@ -112,6 +122,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
         title: _titleController.text.trim(),
         notes: _notesController.text.trim(),
         schedule: schedule,
+        habitCounters: widget.taskType == TaskType.habit
+            ? HabitCounters(
+                positiveEnabled: _positiveCounterEnabled,
+                negativeEnabled: _negativeCounterEnabled,
+              )
+            : null,
         reminder: _reminderEnabled
             ? TaskReminder(
                 time: ReminderTime(
@@ -170,7 +186,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
             const SizedBox(height: 8),
             if (widget.taskType == TaskType.todo) _buildTodoSchedule(),
             if (widget.taskType != TaskType.todo) _buildWeekdaySchedule(),
-            if (widget.taskType == TaskType.habit) _buildHabitGoal(),
+            if (widget.taskType == TaskType.habit) ...[
+              _buildHabitGoal(),
+              const SizedBox(height: 16),
+              _buildHabitCounters(),
+            ],
             const SizedBox(height: 24),
             Text('Reminder', style: Theme.of(context).textTheme.titleLarge),
             SwitchListTile(
@@ -262,6 +282,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         final enabled = allowedWeekdays?.contains(weekday) ?? true;
         return FilterChip(
           label: Text(labels[index]),
+          showCheckmark: false,
           selected: selectedWeekdays.contains(weekday) && enabled,
           onSelected: !enabled
               ? null
@@ -321,6 +342,39 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHabitCounters() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Available counters'),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilterChip(
+              avatar: const Icon(Icons.add, size: 18),
+              label: const Text('Positive'),
+              showCheckmark: false,
+              selected: _positiveCounterEnabled,
+              onSelected: (value) {
+                setState(() => _positiveCounterEnabled = value);
+              },
+            ),
+            FilterChip(
+              avatar: const Icon(Icons.remove, size: 18),
+              label: const Text('Negative'),
+              showCheckmark: false,
+              selected: _negativeCounterEnabled,
+              onSelected: (value) {
+                setState(() => _negativeCounterEnabled = value);
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

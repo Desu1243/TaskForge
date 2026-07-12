@@ -51,6 +51,16 @@ class HabitSchedule extends TaskSchedule {
   final HabitPeriod period;
 }
 
+class HabitCounters {
+  const HabitCounters({
+    required this.positiveEnabled,
+    required this.negativeEnabled,
+  });
+
+  final bool positiveEnabled;
+  final bool negativeEnabled;
+}
+
 class Task {
   Task({
     required this.id,
@@ -59,6 +69,7 @@ class Task {
     required this.notes,
     required this.schedule,
     this.reminder,
+    this.habitCounters,
     this.isCompleted = false,
     this.positiveCount = 0,
     this.negativeCount = 0,
@@ -70,6 +81,7 @@ class Task {
   final String notes;
   final TaskSchedule schedule;
   final TaskReminder? reminder;
+  final HabitCounters? habitCounters;
   bool isCompleted;
   int positiveCount;
   int negativeCount;
