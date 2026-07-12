@@ -234,12 +234,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.check),
-              label: Text('Create $_typeName'),
-            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -275,22 +270,53 @@ class _AddTaskPageState extends State<AddTaskPage> {
     Set<int>? allowedWeekdays,
   }) {
     const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    return Wrap(
-      spacing: 8,
+    return Row(
       children: List.generate(labels.length, (index) {
         final weekday = index + 1;
         final enabled = allowedWeekdays?.contains(weekday) ?? true;
-        return FilterChip(
-          label: Text(labels[index]),
-          showCheckmark: false,
-          selected: selectedWeekdays.contains(weekday) && enabled,
-          onSelected: !enabled
-              ? null
-              : (selected) => setState(() {
-                  selected
-                      ? selectedWeekdays.add(weekday)
-                      : selectedWeekdays.remove(weekday);
-                }),
+        final selected = selectedWeekdays.contains(weekday) && enabled;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: index == 0 ? 0 : 4),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: !enabled
+                  ? null
+                  : () => setState(() {
+                      selected
+                          ? selectedWeekdays.remove(weekday)
+                          : selectedWeekdays.add(weekday);
+                    }),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: enabled
+                        ? Theme.of(context).colorScheme.outline
+                        : Theme.of(
+                            context,
+                          ).colorScheme.outline.withValues(alpha: 0.35),
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  labels[index],
+                  style: TextStyle(
+                    color: enabled
+                        ? null
+                        : Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       }),
     );

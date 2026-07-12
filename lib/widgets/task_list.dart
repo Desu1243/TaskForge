@@ -52,9 +52,24 @@ class _CheckableTaskTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTodo = task.type == TaskType.todo;
-    final controlColor = task.isCompleted
+    final today = DateTime.now();
+    final isCompleted = task.isCompletedOn(today);
+    final isActiveToday =
+        isTodo ||
+        (task.schedule is DailySchedule &&
+            (task.schedule as DailySchedule).activeWeekdays.contains(
+              today.weekday,
+            ));
+    final controlColor = isCompleted
+        ? DefaultTheme.darkPurple
+        : isActiveToday
+        ? DefaultTheme.yellow
+        : DefaultTheme.gray;
+    final checkboxColor = isCompleted
         ? DefaultTheme.gray
-        : DefaultTheme.yellow;
+        : isActiveToday
+        ? DefaultTheme.darkYellow
+        : DefaultTheme.accentPurple;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -66,10 +81,12 @@ class _CheckableTaskTile extends StatelessWidget {
             Material(
               color: controlColor,
               child: InkWell(
-                onTap: () {
-                  task.isCompleted = !task.isCompleted;
-                  onChanged();
-                },
+                onTap: !isActiveToday
+                    ? null
+                    : () {
+                        task.setCompletedOn(today, completed: !isCompleted);
+                        onChanged();
+                      },
                 child: SizedBox(
                   width: 52,
                   child: Center(
@@ -78,13 +95,11 @@ class _CheckableTaskTile extends StatelessWidget {
                       width: 27,
                       height: 27,
                       decoration: BoxDecoration(
-                        color: task.isCompleted
-                            ? DefaultTheme.gray
-                            : DefaultTheme.darkYellow,
+                        color: checkboxColor,
                         shape: isTodo ? BoxShape.circle : BoxShape.rectangle,
                         borderRadius: isTodo ? null : BorderRadius.circular(7),
                       ),
-                      child: task.isCompleted
+                      child: isCompleted
                           ? const Icon(
                               Icons.check,
                               size: 19,
@@ -113,7 +128,7 @@ class _CheckableTaskTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: task.isCompleted
+                        color: isCompleted
                             ? DefaultTheme.lightGray.withValues(alpha: 0.65)
                             : DefaultTheme.fullWhite,
                       ),
@@ -159,11 +174,22 @@ class _HabitTile extends StatelessWidget {
     return DefaultTheme.darkYellow;
   }
 
+  String _counterLabel(HabitCounters counters) {
+    if (counters.positiveEnabled && counters.negativeEnabled) {
+      return '+${task.positiveCount} | -${task.negativeCount}';
+    }
+    if (counters.positiveEnabled) return '+${task.positiveCount}';
+    return '-${task.negativeCount}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final counters =
         task.habitCounters ??
         const HabitCounters(positiveEnabled: true, negativeEnabled: true);
+    final hasCounterValue =
+        (counters.positiveEnabled && task.positiveCount != 0) ||
+        (counters.negativeEnabled && task.negativeCount != 0);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -212,12 +238,12 @@ class _HabitTile extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (task.positiveCount != 0 || task.negativeCount != 0) ...[
+                    if (hasCounterValue) ...[
                       const SizedBox(height: 3),
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          '+${task.positiveCount} / -${task.negativeCount}',
+                          _counterLabel(counters),
                           style: TextStyle(
                             color: DefaultTheme.lightGray.withValues(
                               alpha: 0.65,

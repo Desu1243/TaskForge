@@ -71,6 +71,7 @@ class Task {
     this.reminder,
     this.habitCounters,
     this.isCompleted = false,
+    this.lastCompletedDate,
     this.positiveCount = 0,
     this.negativeCount = 0,
   });
@@ -83,6 +84,24 @@ class Task {
   final TaskReminder? reminder;
   final HabitCounters? habitCounters;
   bool isCompleted;
+  DateTime? lastCompletedDate;
   int positiveCount;
   int negativeCount;
+
+  bool isCompletedOn(DateTime date) {
+    if (type != TaskType.daily) return isCompleted;
+    final completedDate = lastCompletedDate;
+    return completedDate != null &&
+        completedDate.year == date.year &&
+        completedDate.month == date.month &&
+        completedDate.day == date.day;
+  }
+
+  void setCompletedOn(DateTime date, {required bool completed}) {
+    if (type == TaskType.daily) {
+      lastCompletedDate = completed ? date : null;
+    } else {
+      isCompleted = completed;
+    }
+  }
 }
