@@ -68,6 +68,9 @@ class _MainPageState extends State<MainPage> {
           taskType: task.type,
           settings: widget.settings,
           task: task,
+          onDelete: () {
+            setState(() => tasks[task.type]!.remove(task));
+          },
         ),
       ),
     );

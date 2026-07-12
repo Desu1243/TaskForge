@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/pages/task_history_page.dart';
 
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({
     required this.taskType,
     required this.settings,
     this.task,
+    this.onDelete,
     super.key,
   });
 
   final TaskType taskType;
   final AppSettings settings;
   final Task? task;
+  final VoidCallback? onDelete;
 
   @override
   State<AddTaskPage> createState() => _AddTaskPageState();
@@ -137,6 +140,40 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (time != null) setState(() => _reminderTime = time);
   }
 
+  Future<void> _openHistory() async {
+    final task = widget.task;
+    if (task == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (context) => TaskHistoryPage(task: task)),
+    );
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete task?'),
+        content: const Text(
+          'The task and its entire history will be permanently deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    widget.onDelete?.call();
+    Navigator.pop(context);
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final reminderDays = _reminderWeekdays.intersection(_activeWeekdays);
@@ -207,6 +244,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
         lastCompletedDate: editedTask?.lastCompletedDate,
         positiveCount: editedTask?.positiveCount ?? 0,
         negativeCount: editedTask?.negativeCount ?? 0,
+        createdAt: editedTask?.createdAt,
+        history: editedTask?.history,
       ),
     );
   }
@@ -216,7 +255,25 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('${_isEditing ? 'Edit' : 'New'} $_typeName'),
-        actions: [TextButton(onPressed: _save, child: const Text('Save'))],
+        actions: [
+          if (_isEditing && widget.taskType != TaskType.todo)
+            IconButton(
+              tooltip: 'History',
+              onPressed: _openHistory,
+              icon: const Icon(Icons.show_chart),
+            ),
+          if (_isEditing)
+            IconButton(
+              tooltip: 'Delete',
+              onPressed: _delete,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          IconButton(
+            tooltip: 'Save',
+            onPressed: _save,
+            icon: const Icon(Icons.check),
+          ),
+        ],
       ),
       body: Form(
         key: _formKey,

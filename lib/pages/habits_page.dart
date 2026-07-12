@@ -98,7 +98,7 @@ class _HabitTile extends StatelessWidget {
               icon: Icons.add,
               tooltip: 'Add positive point',
               onTap: () {
-                task.positiveCount++;
+                task.addHabitPoint(DateTime.now(), positive: true);
                 onChanged();
               },
             ),
@@ -162,7 +162,7 @@ class _HabitTile extends StatelessWidget {
               icon: Icons.remove,
               tooltip: 'Add negative point',
               onTap: () {
-                task.negativeCount++;
+                task.addHabitPoint(DateTime.now(), positive: false);
                 onChanged();
               },
             ),

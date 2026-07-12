@@ -61,6 +61,20 @@ class HabitCounters {
   final bool negativeEnabled;
 }
 
+class TaskHistoryEntry {
+  TaskHistoryEntry({
+    required this.date,
+    this.positiveCount = 0,
+    this.negativeCount = 0,
+    this.dailyCompleted = false,
+  });
+
+  final DateTime date;
+  int positiveCount;
+  int negativeCount;
+  bool dailyCompleted;
+}
+
 class Task {
   Task({
     required this.id,
@@ -74,7 +88,10 @@ class Task {
     this.lastCompletedDate,
     this.positiveCount = 0,
     this.negativeCount = 0,
-  });
+    DateTime? createdAt,
+    List<TaskHistoryEntry>? history,
+  }) : createdAt = createdAt ?? DateTime.now(),
+       history = history ?? [];
 
   final String id;
   final TaskType type;
@@ -87,9 +104,44 @@ class Task {
   DateTime? lastCompletedDate;
   int positiveCount;
   int negativeCount;
+  final DateTime createdAt;
+  final List<TaskHistoryEntry> history;
+
+  static DateTime dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  TaskHistoryEntry? historyEntryOn(DateTime date) {
+    final normalizedDate = dateOnly(date);
+    for (final entry in history) {
+      if (dateOnly(entry.date) == normalizedDate) return entry;
+    }
+    return null;
+  }
+
+  TaskHistoryEntry _historyEntryFor(DateTime date) {
+    final existingEntry = historyEntryOn(date);
+    if (existingEntry != null) return existingEntry;
+
+    final entry = TaskHistoryEntry(date: dateOnly(date));
+    history.add(entry);
+    return entry;
+  }
+
+  void addHabitPoint(DateTime date, {required bool positive}) {
+    final entry = _historyEntryFor(date);
+    if (positive) {
+      entry.positiveCount++;
+      positiveCount++;
+    } else {
+      entry.negativeCount++;
+      negativeCount++;
+    }
+  }
 
   bool isCompletedOn(DateTime date) {
     if (type != TaskType.daily) return isCompleted;
+    final historyEntry = historyEntryOn(date);
+    if (historyEntry != null) return historyEntry.dailyCompleted;
     final completedDate = lastCompletedDate;
     return completedDate != null &&
         completedDate.year == date.year &&
@@ -100,6 +152,7 @@ class Task {
   void setCompletedOn(DateTime date, {required bool completed}) {
     if (type == TaskType.daily) {
       lastCompletedDate = completed ? date : null;
+      _historyEntryFor(date).dailyCompleted = completed;
     } else {
       isCompleted = completed;
     }
