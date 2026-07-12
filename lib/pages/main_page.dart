@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
@@ -6,11 +8,19 @@ import 'package:taskforge/pages/dailies_page.dart';
 import 'package:taskforge/pages/habits_page.dart';
 import 'package:taskforge/pages/to_dos_page.dart';
 import 'package:taskforge/pages/settings_page.dart';
+import 'package:taskforge/services/task_storage.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({required this.settings, super.key});
+  const MainPage({
+    required this.settings,
+    required this.storage,
+    required this.initialTasks,
+    super.key,
+  });
 
   final AppSettings settings;
+  final TaskStorage storage;
+  final Map<TaskType, List<Task>> initialTasks;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -18,17 +28,17 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   final List<String> pageTitles = ["Habits", "Dailies", "To-do's", "Settings"];
-  final Map<TaskType, List<Task>> tasks = {
-    TaskType.habit: [],
-    TaskType.daily: [],
-    TaskType.todo: [],
-  };
+  late final Map<TaskType, List<Task>> tasks;
   late int currentPage;
   late final PageController controller;
 
   @override
   void initState() {
     super.initState();
+    tasks = {
+      for (final type in TaskType.values)
+        type: List.of(widget.initialTasks[type] ?? const []),
+    };
     currentPage = switch (widget.settings.launchScreen) {
       LaunchScreen.habits => 0,
       LaunchScreen.dailies => 1,
@@ -57,6 +67,7 @@ class _MainPageState extends State<MainPage> {
     );
     if (task != null && mounted) {
       setState(() => tasks[task.type]!.add(task));
+      await _saveTask(task);
     }
   }
 
@@ -70,6 +81,7 @@ class _MainPageState extends State<MainPage> {
           task: task,
           onDelete: () {
             setState(() => tasks[task.type]!.remove(task));
+            unawaited(_deleteTask(task));
           },
         ),
       ),
@@ -80,7 +92,38 @@ class _MainPageState extends State<MainPage> {
     final index = taskList.indexWhere((element) => element.id == task.id);
     if (index != -1) {
       setState(() => taskList[index] = editedTask);
+      await _saveTask(editedTask);
     }
+  }
+
+  void taskChanged(Task task) {
+    setState(() {});
+    unawaited(_saveTask(task));
+  }
+
+  Future<void> _saveTask(Task task) async {
+    try {
+      final now = DateTime.now();
+      task.backfillHistoryThrough(DateTime(now.year, now.month, now.day - 1));
+      await widget.storage.saveTask(task);
+    } on Object {
+      _showStorageError('Task changes could not be saved.');
+    }
+  }
+
+  Future<void> _deleteTask(Task task) async {
+    try {
+      await widget.storage.deleteTask(task);
+    } on Object {
+      _showStorageError('The task file could not be deleted.');
+    }
+  }
+
+  void _showStorageError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -104,17 +147,17 @@ class _MainPageState extends State<MainPage> {
         children: [
           HabitsPage(
             tasks: tasks[TaskType.habit]!,
-            onChanged: () => setState(() {}),
+            onChanged: taskChanged,
             onEdit: editTask,
           ),
           DailiesPage(
             tasks: tasks[TaskType.daily]!,
-            onChanged: () => setState(() {}),
+            onChanged: taskChanged,
             onEdit: editTask,
           ),
           ToDosPage(
             tasks: tasks[TaskType.todo]!,
-            onChanged: () => setState(() {}),
+            onChanged: taskChanged,
             onEdit: editTask,
           ),
           SettingsPage(settings: widget.settings),

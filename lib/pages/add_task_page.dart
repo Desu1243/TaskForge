@@ -28,6 +28,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
   final _reminderTitleController = TextEditingController();
   final _reminderMessageController = TextEditingController();
   final _targetController = TextEditingController(text: '1');
+  final _positiveCountController = TextEditingController(text: '0');
+  final _negativeCountController = TextEditingController(text: '0');
 
   final Set<int> _activeWeekdays = {
     DateTime.monday,
@@ -110,6 +112,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
       _positiveCounterEnabled = counters.positiveEnabled;
       _negativeCounterEnabled = counters.negativeEnabled;
     }
+    if (task.type == TaskType.habit) {
+      final todayEntry = task.historyEntryOn(DateTime.now());
+      _positiveCountController.text = (todayEntry?.positiveCount ?? 0)
+          .toString();
+      _negativeCountController.text = (todayEntry?.negativeCount ?? 0)
+          .toString();
+    }
   }
 
   @override
@@ -119,6 +128,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _reminderTitleController.dispose();
     _reminderMessageController.dispose();
     _targetController.dispose();
+    _positiveCountController.dispose();
+    _negativeCountController.dispose();
     super.dispose();
   }
 
@@ -211,43 +222,48 @@ class _AddTaskPageState extends State<AddTaskPage> {
     };
 
     final editedTask = widget.task;
-    Navigator.pop(
-      context,
-      Task(
-        id: editedTask?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        type: widget.taskType,
-        title: _titleController.text.trim(),
-        notes: _notesController.text.trim(),
-        schedule: schedule,
-        habitCounters: widget.taskType == TaskType.habit
-            ? HabitCounters(
-                positiveEnabled: _positiveCounterEnabled,
-                negativeEnabled: _negativeCounterEnabled,
-              )
-            : null,
-        reminder: _reminderEnabled
-            ? TaskReminder(
-                time: ReminderTime(
-                  hour: _reminderTime.hour,
-                  minute: _reminderTime.minute,
-                ),
-                title: _reminderTitleController.text.trim().isEmpty
-                    ? _titleController.text.trim()
-                    : _reminderTitleController.text.trim(),
-                message: _reminderMessageController.text.trim(),
-                activeWeekdays: widget.taskType == TaskType.todo
-                    ? null
-                    : reminderDays,
-              )
-            : null,
-        isCompleted: editedTask?.isCompleted ?? false,
-        lastCompletedDate: editedTask?.lastCompletedDate,
-        positiveCount: editedTask?.positiveCount ?? 0,
-        negativeCount: editedTask?.negativeCount ?? 0,
-        createdAt: editedTask?.createdAt,
-        history: editedTask?.history,
-      ),
+    final savedTask = Task(
+      id: editedTask?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      type: widget.taskType,
+      title: _titleController.text.trim(),
+      notes: _notesController.text.trim(),
+      schedule: schedule,
+      habitCounters: widget.taskType == TaskType.habit
+          ? HabitCounters(
+              positiveEnabled: _positiveCounterEnabled,
+              negativeEnabled: _negativeCounterEnabled,
+            )
+          : null,
+      reminder: _reminderEnabled
+          ? TaskReminder(
+              time: ReminderTime(
+                hour: _reminderTime.hour,
+                minute: _reminderTime.minute,
+              ),
+              title: _reminderTitleController.text.trim().isEmpty
+                  ? _titleController.text.trim()
+                  : _reminderTitleController.text.trim(),
+              message: _reminderMessageController.text.trim(),
+              activeWeekdays: widget.taskType == TaskType.todo
+                  ? null
+                  : reminderDays,
+            )
+          : null,
+      isCompleted: editedTask?.isCompleted ?? false,
+      lastCompletedDate: editedTask?.lastCompletedDate,
+      positiveCount: editedTask?.positiveCount ?? 0,
+      negativeCount: editedTask?.negativeCount ?? 0,
+      createdAt: editedTask?.createdAt,
+      history: editedTask?.history,
     );
+    if (_isEditing && widget.taskType == TaskType.habit) {
+      savedTask.setHabitPointsForDate(
+        DateTime.now(),
+        positive: int.parse(_positiveCountController.text),
+        negative: int.parse(_negativeCountController.text),
+      );
+    }
+    Navigator.pop(context, savedTask);
   }
 
   @override
@@ -526,7 +542,50 @@ class _AddTaskPageState extends State<AddTaskPage> {
             ),
           ],
         ),
+        if (_isEditing) ...[
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _positiveCountController,
+                  enabled: _positiveCounterEnabled,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Today's positive",
+                    prefixIcon: Icon(Icons.add),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      _validateCounter(value, enabled: _positiveCounterEnabled),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _negativeCountController,
+                  enabled: _negativeCounterEnabled,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Today's negative",
+                    prefixIcon: Icon(Icons.remove),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      _validateCounter(value, enabled: _negativeCounterEnabled),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
+  }
+
+  String? _validateCounter(String? value, {required bool enabled}) {
+    if (!enabled) return null;
+    final count = int.tryParse(value ?? '');
+    return count == null || count < 0 ? 'Enter 0 or more.' : null;
   }
 }

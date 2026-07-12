@@ -11,7 +11,7 @@ class ToDosPage extends StatelessWidget {
   });
 
   final List<Task> tasks;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   @override
@@ -47,7 +47,7 @@ class _TodoTile extends StatelessWidget {
   });
 
   final Task task;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   @override
@@ -69,7 +69,7 @@ class _TodoTile extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   task.isCompleted = !isCompleted;
-                  onChanged();
+                  onChanged(task);
                 },
                 child: SizedBox(
                   width: 52,

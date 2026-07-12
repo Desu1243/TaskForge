@@ -11,7 +11,7 @@ class HabitsPage extends StatelessWidget {
   });
 
   final List<Task> tasks;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   @override
@@ -47,7 +47,7 @@ class _HabitTile extends StatelessWidget {
   });
 
   final Task task;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   Color _statusColor(HabitCounters counters) {
@@ -99,7 +99,7 @@ class _HabitTile extends StatelessWidget {
               tooltip: 'Add positive point',
               onTap: () {
                 task.addHabitPoint(DateTime.now(), positive: true);
-                onChanged();
+                onChanged(task);
               },
             ),
             Expanded(
@@ -163,7 +163,7 @@ class _HabitTile extends StatelessWidget {
               tooltip: 'Add negative point',
               onTap: () {
                 task.addHabitPoint(DateTime.now(), positive: false);
-                onChanged();
+                onChanged(task);
               },
             ),
           ],

@@ -11,7 +11,7 @@ class DailiesPage extends StatelessWidget {
   });
 
   final List<Task> tasks;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   @override
@@ -47,7 +47,7 @@ class _DailyTile extends StatelessWidget {
   });
 
   final Task task;
-  final VoidCallback onChanged;
+  final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
   @override
@@ -84,7 +84,7 @@ class _DailyTile extends StatelessWidget {
                     ? null
                     : () {
                         task.setCompletedOn(today, completed: !isCompleted);
-                        onChanged();
+                        onChanged(task);
                       },
                 child: SizedBox(
                   width: 52,
