@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'MainPage.dart';
+import 'main_page.dart';
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});

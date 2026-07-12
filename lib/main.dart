@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:taskforge/pages/LoadingPage.dart';
+import 'package:taskforge/pages/loading_page.dart';
 import 'package:taskforge/themes/DefaultTheme.dart';
 
 final ThemeData myTheme = ThemeData(
@@ -8,24 +8,19 @@ final ThemeData myTheme = ThemeData(
   appBarTheme: AppBarTheme(
     backgroundColor: DefaultTheme.backgroundPurple,
     elevation: 0.0,
-    titleTextStyle: TextStyle(
-      color: DefaultTheme.fullWhite,
-      fontSize: 20
-    ),
-    actionsIconTheme: IconThemeData(
-      color: DefaultTheme.fullWhite
-    )
+    titleTextStyle: TextStyle(color: DefaultTheme.fullWhite, fontSize: 20),
+    actionsIconTheme: IconThemeData(color: DefaultTheme.fullWhite),
   ),
 
   floatingActionButtonTheme: FloatingActionButtonThemeData(
     backgroundColor: DefaultTheme.purple,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(16)),
-    )
+    ),
   ),
 
   bottomAppBarTheme: BottomAppBarThemeData(
-    color: DefaultTheme.backgroundPurple
+    color: DefaultTheme.backgroundPurple,
   ),
 
   colorScheme: ColorScheme.fromSeed(
@@ -36,9 +31,11 @@ final ThemeData myTheme = ThemeData(
 );
 
 void main() {
-  runApp(MaterialApp(
-    title: "TaskForge",
-    theme: myTheme,
-    home: const SafeArea(child: LoadingPage()),
-  ));
+  runApp(
+    MaterialApp(
+      title: "TaskForge",
+      theme: myTheme,
+      home: const SafeArea(child: LoadingPage()),
+    ),
+  );
 }
