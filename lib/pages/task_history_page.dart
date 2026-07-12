@@ -1,25 +1,67 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
 import 'package:taskforge/themes/default_theme.dart';
 
 class TaskHistoryPage extends StatelessWidget {
-  const TaskHistoryPage({required this.task, super.key});
+  const TaskHistoryPage({
+    required this.task,
+    required this.settings,
+    super.key,
+  });
 
   final Task task;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
-    final days = _buildHistoryDays();
+    return AnimatedBuilder(
+      animation: settings,
+      builder: (context, _) {
+        final allDays = _buildHistoryDays();
+        final hideEmpty =
+            task.type == TaskType.habit && settings.hideEmptyHabitHistory;
+        final days = hideEmpty
+            ? allDays
+                  .where(
+                    (day) => day.positiveCount != 0 || day.negativeCount != 0,
+                  )
+                  .toList()
+            : allDays;
 
-    return Scaffold(
-      appBar: AppBar(title: Text('${task.title} history')),
-      body: days.isEmpty
-          ? const Center(child: Text('No history yet.'))
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-              children: [
+        return Scaffold(
+          appBar: AppBar(title: Text('${task.title} history')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: [
+              if (task.type == TaskType.habit) ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Hide empty records'),
+                  subtitle: const Text('Hide days with +0 | -0'),
+                  value: settings.hideEmptyHabitHistory,
+                  onChanged: (value) {
+                    if (value != null) {
+                      settings.setHideEmptyHabitHistory(value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (days.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 72),
+                  child: Text(
+                    hideEmpty
+                        ? 'No non-empty habit records yet.'
+                        : 'No history yet.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else ...[
                 _HistoryChart(task: task, days: days),
                 const SizedBox(height: 24),
                 Text(
@@ -34,7 +76,10 @@ class TaskHistoryPage extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            ],
+          ),
+        );
+      },
     );
   }
 

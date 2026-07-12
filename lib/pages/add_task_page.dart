@@ -156,7 +156,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (task == null) return;
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (context) => TaskHistoryPage(task: task)),
+      MaterialPageRoute(
+        builder: (context) =>
+            TaskHistoryPage(task: task, settings: widget.settings),
+      ),
     );
   }
 

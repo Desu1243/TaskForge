@@ -70,6 +70,16 @@ class SettingsPage extends StatelessWidget {
                 : null,
           ),
           const SizedBox(height: 24),
+          Text('History', style: Theme.of(context).textTheme.titleMedium),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.filter_alt_outlined),
+            title: const Text('Hide empty habit records in history'),
+            subtitle: const Text('Hide days with +0 | -0'),
+            value: settings.hideEmptyHabitHistory,
+            onChanged: settings.setHideEmptyHabitHistory,
+          ),
+          const SizedBox(height: 24),
           Text('Theme', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           SegmentedButton<AppTheme>(

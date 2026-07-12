@@ -14,18 +14,21 @@ class AppSettings extends ChangeNotifier {
     required int defaultReminderHour,
     required int defaultReminderMinute,
     required bool notificationsEnabled,
+    required bool hideEmptyHabitHistory,
     required AppTheme appTheme,
   }) : _preferences = preferences,
        _launchScreen = launchScreen,
        _defaultReminderHour = defaultReminderHour,
        _defaultReminderMinute = defaultReminderMinute,
        _notificationsEnabled = notificationsEnabled,
+       _hideEmptyHabitHistory = hideEmptyHabitHistory,
        _appTheme = appTheme;
 
   static const _launchScreenKey = 'launch_screen';
   static const _reminderHourKey = 'default_reminder_hour';
   static const _reminderMinuteKey = 'default_reminder_minute';
   static const _notificationsEnabledKey = 'notifications_enabled';
+  static const _hideEmptyHabitHistoryKey = 'hide_empty_habit_history';
   static const _appThemeKey = 'app_theme';
 
   final SharedPreferencesAsync _preferences;
@@ -33,12 +36,14 @@ class AppSettings extends ChangeNotifier {
   int _defaultReminderHour;
   int _defaultReminderMinute;
   bool _notificationsEnabled;
+  bool _hideEmptyHabitHistory;
   AppTheme _appTheme;
 
   LaunchScreen get launchScreen => _launchScreen;
   TimeOfDay get defaultReminderTime =>
       TimeOfDay(hour: _defaultReminderHour, minute: _defaultReminderMinute);
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get hideEmptyHabitHistory => _hideEmptyHabitHistory;
   AppTheme get appTheme => _appTheme;
   ThemeMode get themeMode =>
       _appTheme == AppTheme.dark ? ThemeMode.dark : ThemeMode.light;
@@ -57,6 +62,8 @@ class AppSettings extends ChangeNotifier {
       defaultReminderMinute: await preferences.getInt(_reminderMinuteKey) ?? 0,
       notificationsEnabled:
           await preferences.getBool(_notificationsEnabledKey) ?? true,
+      hideEmptyHabitHistory:
+          await preferences.getBool(_hideEmptyHabitHistoryKey) ?? true,
       appTheme: AppTheme.values.asNameMap()[appThemeName] ?? AppTheme.dark,
     );
   }
@@ -85,6 +92,13 @@ class AppSettings extends ChangeNotifier {
     _notificationsEnabled = value;
     notifyListeners();
     unawaited(_preferences.setBool(_notificationsEnabledKey, value));
+  }
+
+  void setHideEmptyHabitHistory(bool value) {
+    if (_hideEmptyHabitHistory == value) return;
+    _hideEmptyHabitHistory = value;
+    notifyListeners();
+    unawaited(_preferences.setBool(_hideEmptyHabitHistoryKey, value));
   }
 
   void setAppTheme(AppTheme value) {
