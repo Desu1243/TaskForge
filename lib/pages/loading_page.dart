@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/services/notification_service.dart';
 import 'package:taskforge/services/task_storage.dart';
 
 import 'main_page.dart';
@@ -21,6 +22,20 @@ class _LoadingPageState extends State<LoadingPage> {
     try {
       final storage = await TaskStorage.open();
       final tasks = await storage.loadAll();
+      final notificationService = await NotificationService.open();
+      if (widget.settings.notificationsEnabled) {
+        final permissionGranted = await notificationService.requestPermission();
+        if (!permissionGranted) {
+          widget.settings.setNotificationsEnabled(false);
+        }
+      }
+      if (widget.settings.notificationsEnabled) {
+        await notificationService.syncAll(
+          tasks.values.expand((taskList) => taskList),
+        );
+      } else {
+        await notificationService.cancelAll();
+      }
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -29,6 +44,7 @@ class _LoadingPageState extends State<LoadingPage> {
           builder: (context) => MainPage(
             settings: widget.settings,
             storage: storage,
+            notificationService: notificationService,
             initialTasks: tasks,
           ),
         ),

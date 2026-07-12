@@ -54,7 +54,6 @@ class SettingsPage extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Enable notifications'),
-            subtitle: const Text('Master switch for all task reminders'),
             value: settings.notificationsEnabled,
             onChanged: settings.setNotificationsEnabled,
           ),
@@ -63,7 +62,6 @@ class SettingsPage extends StatelessWidget {
             enabled: settings.notificationsEnabled,
             leading: const Icon(Icons.schedule),
             title: const Text('Default reminder time'),
-            subtitle: const Text('Used when creating a new task'),
             trailing: Text(settings.defaultReminderTime.format(context)),
             onTap: settings.notificationsEnabled
                 ? () => _selectReminderTime(context)
@@ -74,8 +72,7 @@ class SettingsPage extends StatelessWidget {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.filter_alt_outlined),
-            title: const Text('Hide empty habit records in history'),
-            subtitle: const Text('Hide days with +0 | -0'),
+            title: const Text('Auto hide empty habit records in history'),
             value: settings.hideEmptyHabitHistory,
             onChanged: settings.setHideEmptyHabitHistory,
           ),

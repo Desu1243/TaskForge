@@ -21,7 +21,7 @@ class ToDosPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Text(
-            'No to-dos yet. Tap + to create one.',
+            "You don't have any To-Do's\nTap + to create one",
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium,
           ),

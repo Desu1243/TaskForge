@@ -243,9 +243,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 hour: _reminderTime.hour,
                 minute: _reminderTime.minute,
               ),
-              title: _reminderTitleController.text.trim().isEmpty
-                  ? _titleController.text.trim()
-                  : _reminderTitleController.text.trim(),
+              title: _reminderTitleController.text.trim(),
               message: _reminderMessageController.text.trim(),
               activeWeekdays: widget.taskType == TaskType.todo
                   ? null

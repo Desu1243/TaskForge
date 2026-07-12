@@ -8,18 +8,21 @@ import 'package:taskforge/pages/dailies_page.dart';
 import 'package:taskforge/pages/habits_page.dart';
 import 'package:taskforge/pages/to_dos_page.dart';
 import 'package:taskforge/pages/settings_page.dart';
+import 'package:taskforge/services/notification_service.dart';
 import 'package:taskforge/services/task_storage.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({
     required this.settings,
     required this.storage,
+    required this.notificationService,
     required this.initialTasks,
     super.key,
   });
 
   final AppSettings settings;
   final TaskStorage storage;
+  final NotificationService notificationService;
   final Map<TaskType, List<Task>> initialTasks;
 
   @override
@@ -31,6 +34,7 @@ class _MainPageState extends State<MainPage> {
   late final Map<TaskType, List<Task>> tasks;
   late int currentPage;
   late final PageController controller;
+  late bool _notificationsEnabled;
 
   @override
   void initState() {
@@ -39,6 +43,8 @@ class _MainPageState extends State<MainPage> {
       for (final type in TaskType.values)
         type: List.of(widget.initialTasks[type] ?? const []),
     };
+    _notificationsEnabled = widget.settings.notificationsEnabled;
+    widget.settings.addListener(_settingsChanged);
     currentPage = switch (widget.settings.launchScreen) {
       LaunchScreen.habits => 0,
       LaunchScreen.dailies => 1,
@@ -68,6 +74,7 @@ class _MainPageState extends State<MainPage> {
     if (task != null && mounted) {
       setState(() => tasks[task.type]!.add(task));
       await _saveTask(task);
+      await _scheduleTaskNotification(task);
     }
   }
 
@@ -93,6 +100,7 @@ class _MainPageState extends State<MainPage> {
     if (index != -1) {
       setState(() => taskList[index] = editedTask);
       await _saveTask(editedTask);
+      await _scheduleTaskNotification(editedTask);
     }
   }
 
@@ -114,8 +122,53 @@ class _MainPageState extends State<MainPage> {
   Future<void> _deleteTask(Task task) async {
     try {
       await widget.storage.deleteTask(task);
+      await widget.notificationService.cancelTask(task);
     } on Object {
       _showStorageError('The task file could not be deleted.');
+    }
+  }
+
+  Future<void> _scheduleTaskNotification(Task task) async {
+    try {
+      if (widget.settings.notificationsEnabled) {
+        await widget.notificationService.scheduleTask(task);
+      } else {
+        await widget.notificationService.cancelTask(task);
+      }
+    } on Object {
+      _showStorageError('The task reminder could not be scheduled.');
+    }
+  }
+
+  void _settingsChanged() {
+    final enabled = widget.settings.notificationsEnabled;
+    if (_notificationsEnabled == enabled) return;
+    _notificationsEnabled = enabled;
+    unawaited(_applyNotificationSetting(enabled));
+  }
+
+  Future<void> _applyNotificationSetting(bool enabled) async {
+    try {
+      if (!enabled) {
+        await widget.notificationService.cancelAll();
+        return;
+      }
+      final permissionGranted = await widget.notificationService
+          .requestPermission();
+      if (!permissionGranted) {
+        widget.settings.setNotificationsEnabled(false);
+        _showStorageError('Notification permission was not granted.');
+        return;
+      }
+      if (!widget.settings.notificationsEnabled) return;
+      await widget.notificationService.syncAll(
+        tasks.values.expand((taskList) => taskList),
+      );
+      if (!widget.settings.notificationsEnabled) {
+        await widget.notificationService.cancelAll();
+      }
+    } on Object {
+      _showStorageError('Notifications could not be updated.');
     }
   }
 
@@ -128,6 +181,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    widget.settings.removeListener(_settingsChanged);
     controller.dispose();
     super.dispose();
   }
