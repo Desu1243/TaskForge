@@ -1,8 +1,12 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:taskforge/models/task.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+
+enum NotificationPermissionResult { granted, denied, unavailable }
 
 class NotificationService {
   NotificationService._(
@@ -39,32 +43,53 @@ class NotificationService {
     configureLocalTimezone(timezoneName);
 
     final plugin = FlutterLocalNotificationsPlugin();
+    bool initialized;
     try {
-      final initialized = await plugin.initialize(
-        settings: const InitializationSettings(
-          android: AndroidInitializationSettings('ic_stat_taskforge'),
-        ),
+      initialized =
+          await plugin.initialize(
+            settings: const InitializationSettings(
+              android: AndroidInitializationSettings('ic_stat_taskforge'),
+            ),
+          ) ??
+          false;
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'Notification plugin initialization failed.',
+        name: 'TaskForge.NotificationService',
+        error: error,
+        stackTrace: stackTrace,
       );
-      final android = plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      final canScheduleExactly =
-          await android?.canScheduleExactNotifications() ?? false;
-      return NotificationService._(
-        plugin,
-        canScheduleExactly
-            ? AndroidScheduleMode.exactAllowWhileIdle
-            : AndroidScheduleMode.inexactAllowWhileIdle,
-        available: initialized ?? false,
-      );
-    } on Object {
       return NotificationService._(
         plugin,
         AndroidScheduleMode.inexactAllowWhileIdle,
         available: false,
       );
     }
+
+    if (!initialized) {
+      developer.log(
+        'Notification plugin initialization returned false.',
+        name: 'TaskForge.NotificationService',
+      );
+      return NotificationService._(
+        plugin,
+        AndroidScheduleMode.inexactAllowWhileIdle,
+        available: false,
+      );
+    }
+
+    final android = plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    final canScheduleExactly = await _canScheduleExactly(android);
+    return NotificationService._(
+      plugin,
+      canScheduleExactly
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      available: true,
+    );
   }
 
   static void configureLocalTimezone(String? timezoneName) {
@@ -79,26 +104,69 @@ class NotificationService {
     }
   }
 
-  Future<bool> requestPermission() async {
-    if (!_available) return false;
+  Future<NotificationPermissionResult> requestPermission() async {
+    if (!_available) return NotificationPermissionResult.unavailable;
     final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
-    final notificationsGranted =
-        await android?.requestNotificationsPermission() ?? true;
-    if (!notificationsGranted) return false;
+    if (android == null) return NotificationPermissionResult.granted;
 
-    var canScheduleExactly =
-        await android?.canScheduleExactNotifications() ?? false;
+    try {
+      var notificationsGranted =
+          await android.areNotificationsEnabled() ?? false;
+      if (!notificationsGranted) {
+        notificationsGranted =
+            await android.requestNotificationsPermission() ?? false;
+      }
+      if (!notificationsGranted) {
+        return NotificationPermissionResult.denied;
+      }
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'Notification permission could not be checked.',
+        name: 'TaskForge.NotificationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return NotificationPermissionResult.unavailable;
+    }
+
+    var canScheduleExactly = await _canScheduleExactly(android);
     if (!canScheduleExactly) {
-      canScheduleExactly =
-          await android?.requestExactAlarmsPermission() ?? false;
+      try {
+        canScheduleExactly =
+            await android.requestExactAlarmsPermission() ?? false;
+      } on Object catch (error, stackTrace) {
+        developer.log(
+          'Exact alarm permission could not be requested. Using inexact reminders.',
+          name: 'TaskForge.NotificationService',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
     _scheduleMode = canScheduleExactly
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
-    return true;
+    return NotificationPermissionResult.granted;
+  }
+
+  static Future<bool> _canScheduleExactly(
+    AndroidFlutterLocalNotificationsPlugin? android,
+  ) async {
+    if (android == null) return false;
+    try {
+      return await android.canScheduleExactNotifications() ?? false;
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'Exact alarm permission could not be checked. Using inexact reminders.',
+        name: 'TaskForge.NotificationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
   }
 
   Future<void> syncAll(Iterable<Task> tasks) async {

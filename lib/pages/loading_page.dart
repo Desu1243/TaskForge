@@ -24,8 +24,8 @@ class _LoadingPageState extends State<LoadingPage> {
       final tasks = await storage.loadAll();
       final notificationService = await NotificationService.open();
       if (widget.settings.notificationsEnabled) {
-        final permissionGranted = await notificationService.requestPermission();
-        if (!permissionGranted) {
+        final permissionResult = await notificationService.requestPermission();
+        if (permissionResult == NotificationPermissionResult.denied) {
           widget.settings.setNotificationsEnabled(false);
         }
       }
