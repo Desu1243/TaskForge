@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/models/task.dart';
+import 'package:taskforge/pages/add_task_page.dart';
 import 'package:taskforge/services/notification_service.dart';
 import 'package:taskforge/services/task_storage.dart';
 
@@ -35,6 +37,27 @@ class _LoadingPageState extends State<LoadingPage> {
         );
       } else {
         await notificationService.cancelAll();
+      }
+      if (!mounted) return;
+
+      if (widget.settings.autoAddTaskOnLaunch) {
+        final task = await Navigator.push<Task>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddTaskPage(
+              taskType: widget.settings.autoAddTaskType,
+              settings: widget.settings,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        if (task != null) {
+          tasks[task.type]!.add(task);
+          await storage.saveTask(task);
+          if (widget.settings.notificationsEnabled) {
+            await notificationService.scheduleTask(task);
+          }
+        }
       }
       if (!mounted) return;
 

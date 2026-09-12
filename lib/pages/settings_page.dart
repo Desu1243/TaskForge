@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/models/task.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({required this.settings, super.key});
@@ -47,6 +48,35 @@ class SettingsPage extends StatelessWidget {
             onChanged: (value) {
               if (value != null) settings.setLaunchScreen(value);
             },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.add_task),
+            title: const Text('Automatically add a task on launch'),
+            subtitle: const Text(
+              'Open the new task form before showing your task lists',
+            ),
+            value: settings.autoAddTaskOnLaunch,
+            onChanged: settings.setAutoAddTaskOnLaunch,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<TaskType>(
+            initialValue: settings.autoAddTaskType,
+            decoration: const InputDecoration(
+              labelText: 'Default task type',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+            items: const [
+              DropdownMenuItem(value: TaskType.habit, child: Text('Habit')),
+              DropdownMenuItem(value: TaskType.daily, child: Text('Daily')),
+              DropdownMenuItem(value: TaskType.todo, child: Text('To-do')),
+            ],
+            onChanged: settings.autoAddTaskOnLaunch
+                ? (value) {
+                    if (value != null) settings.setAutoAddTaskType(value);
+                  }
+                : null,
           ),
           const SizedBox(height: 24),
           Text('Notifications', style: Theme.of(context).textTheme.titleMedium),
