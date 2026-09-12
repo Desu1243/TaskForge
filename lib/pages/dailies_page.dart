@@ -80,12 +80,10 @@ class _DailyTile extends StatelessWidget {
             Material(
               color: controlColor,
               child: InkWell(
-                onTap: !isActiveToday
-                    ? null
-                    : () {
-                        task.setCompletedOn(today, completed: !isCompleted);
-                        onChanged(task);
-                      },
+                onTap: () {
+                  task.setCompletedOn(today, completed: !isCompleted);
+                  onChanged(task);
+                },
                 child: SizedBox(
                   width: 52,
                   child: Center(

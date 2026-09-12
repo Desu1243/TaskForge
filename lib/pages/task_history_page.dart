@@ -89,8 +89,10 @@ class TaskHistoryPage extends StatelessWidget {
     var date = Task.dateOnly(task.createdAt);
 
     while (!date.isAfter(today)) {
-      if (_isScheduledOn(date)) {
-        final entry = task.historyEntryOn(date);
+      final entry = task.historyEntryOn(date);
+      final isExtraDailyCompletion =
+          task.type == TaskType.daily && (entry?.dailyCompleted ?? false);
+      if (_isScheduledOn(date) || isExtraDailyCompletion) {
         final isToday = date == today;
         if (!isToday || entry != null) {
           result.add(

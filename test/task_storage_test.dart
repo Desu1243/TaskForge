@@ -78,4 +78,28 @@ void main() {
     expect(task.historyEntryOn(today)!.positiveCount, 2);
     expect(task.historyEntryOn(today)!.negativeCount, 0);
   });
+
+  test('saves a daily completion outside its schedule', () async {
+    final directory = await Directory.systemTemp.createTemp('taskforge_test_');
+    addTearDown(() => directory.delete(recursive: true));
+    final storage = TaskStorage.forDirectory(directory);
+    final unscheduledTuesday = DateTime(2026, 7, 14);
+    final task = Task(
+      id: 'daily-1',
+      type: TaskType.daily,
+      title: 'Weekly review',
+      notes: '',
+      schedule: const DailySchedule(activeWeekdays: {DateTime.monday}),
+      createdAt: DateTime(2026, 7, 13),
+    );
+
+    task.setCompletedOn(unscheduledTuesday, completed: true);
+    await storage.saveTask(task);
+    final loaded = await storage.loadAll();
+    final restored = loaded[TaskType.daily]!.single;
+
+    expect(restored.isCompletedOn(unscheduledTuesday), isTrue);
+    expect(restored.historyEntryOn(unscheduledTuesday), isNotNull);
+    expect(restored.historyEntryOn(unscheduledTuesday)!.dailyCompleted, isTrue);
+  });
 }
