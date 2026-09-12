@@ -60,6 +60,15 @@ class _MainPageState extends State<MainPage> {
     _ => null,
   };
 
+  void _selectPage(int page) {
+    if (page == currentPage || !controller.hasClients) return;
+    controller.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
   Future<void> addTask() async {
     final taskType = currentTaskType;
     if (taskType == null) return;
@@ -260,15 +269,7 @@ class _MainPageState extends State<MainPage> {
                   EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                 ),
               ),
-              onPressed: () {
-                setState(() {
-                  controller.animateToPage(
-                    0,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.bounceInOut,
-                  );
-                });
-              },
+              onPressed: () => _selectPage(0),
               child: Column(
                 children: [
                   currentPage == 0
@@ -307,15 +308,7 @@ class _MainPageState extends State<MainPage> {
                   EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                 ),
               ),
-              onPressed: () {
-                setState(() {
-                  controller.animateToPage(
-                    1,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.bounceInOut,
-                  );
-                });
-              },
+              onPressed: () => _selectPage(1),
               child: Column(
                 children: [
                   currentPage == 1
@@ -355,15 +348,7 @@ class _MainPageState extends State<MainPage> {
                   EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                 ),
               ),
-              onPressed: () {
-                setState(() {
-                  controller.animateToPage(
-                    2,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.bounceInOut,
-                  );
-                });
-              },
+              onPressed: () => _selectPage(2),
               child: Column(
                 children: [
                   currentPage == 2
@@ -402,15 +387,7 @@ class _MainPageState extends State<MainPage> {
                   EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                 ),
               ),
-              onPressed: () {
-                setState(() {
-                  controller.animateToPage(
-                    3,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.bounceInOut,
-                  );
-                });
-              },
+              onPressed: () => _selectPage(3),
               child: Column(
                 children: [
                   currentPage == 3
