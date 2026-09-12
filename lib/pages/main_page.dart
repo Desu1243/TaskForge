@@ -35,6 +35,9 @@ class _MainPageState extends State<MainPage> {
   late int currentPage;
   late final PageController controller;
   late bool _notificationsEnabled;
+  late bool _autoDeleteCompletedTodos;
+  late int _autoDeleteCompletedTodosAfterHours;
+  final Map<String, Timer> _todoDeletionTimers = {};
 
   @override
   void initState() {
@@ -44,6 +47,9 @@ class _MainPageState extends State<MainPage> {
         type: List.of(widget.initialTasks[type] ?? const []),
     };
     _notificationsEnabled = widget.settings.notificationsEnabled;
+    _autoDeleteCompletedTodos = widget.settings.autoDeleteCompletedTodos;
+    _autoDeleteCompletedTodosAfterHours =
+        widget.settings.autoDeleteCompletedTodosAfterHours;
     widget.settings.addListener(_settingsChanged);
     currentPage = switch (widget.settings.launchScreen) {
       LaunchScreen.habits => 0,
@@ -51,6 +57,7 @@ class _MainPageState extends State<MainPage> {
       LaunchScreen.todos => 2,
     };
     controller = PageController(initialPage: currentPage, keepPage: true);
+    unawaited(_reconcileTodoDeletionTimers());
   }
 
   TaskType? get currentTaskType => switch (currentPage) {
@@ -110,12 +117,20 @@ class _MainPageState extends State<MainPage> {
       setState(() => taskList[index] = editedTask);
       await _saveTask(editedTask);
       await _scheduleTaskNotification(editedTask);
+      _scheduleTodoDeletion(editedTask);
     }
   }
 
   void taskChanged(Task task) {
     setState(() {});
-    unawaited(_saveTask(task));
+    unawaited(_persistTaskChange(task));
+  }
+
+  Future<void> _persistTaskChange(Task task) async {
+    await _saveTask(task);
+    if (task.type != TaskType.todo) return;
+    await _scheduleTaskNotification(task);
+    _scheduleTodoDeletion(task);
   }
 
   Future<void> _saveTask(Task task) async {
@@ -129,6 +144,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   Future<void> _deleteTask(Task task) async {
+    _todoDeletionTimers.remove(task.id)?.cancel();
     try {
       await widget.storage.deleteTask(task);
       await widget.notificationService.cancelTask(task);
@@ -151,9 +167,77 @@ class _MainPageState extends State<MainPage> {
 
   void _settingsChanged() {
     final enabled = widget.settings.notificationsEnabled;
-    if (_notificationsEnabled == enabled) return;
-    _notificationsEnabled = enabled;
-    unawaited(_applyNotificationSetting(enabled));
+    if (_notificationsEnabled != enabled) {
+      _notificationsEnabled = enabled;
+      unawaited(_applyNotificationSetting(enabled));
+    }
+
+    final autoDeleteEnabled = widget.settings.autoDeleteCompletedTodos;
+    final autoDeleteHours = widget.settings.autoDeleteCompletedTodosAfterHours;
+    if (_autoDeleteCompletedTodos != autoDeleteEnabled ||
+        _autoDeleteCompletedTodosAfterHours != autoDeleteHours) {
+      _autoDeleteCompletedTodos = autoDeleteEnabled;
+      _autoDeleteCompletedTodosAfterHours = autoDeleteHours;
+      unawaited(_reconcileTodoDeletionTimers());
+    }
+  }
+
+  Future<void> _reconcileTodoDeletionTimers() async {
+    for (final timer in _todoDeletionTimers.values) {
+      timer.cancel();
+    }
+    _todoDeletionTimers.clear();
+    if (!_autoDeleteCompletedTodos) return;
+
+    final now = DateTime.now();
+    for (final task in List<Task>.of(tasks[TaskType.todo]!)) {
+      if (!task.isCompleted) continue;
+      if (task.completedAt == null) {
+        task.completedAt = now;
+        await _saveTask(task);
+      }
+      _scheduleTodoDeletion(task);
+    }
+  }
+
+  void _scheduleTodoDeletion(Task task) {
+    _todoDeletionTimers.remove(task.id)?.cancel();
+    final completedAt = task.completedAt;
+    if (!_autoDeleteCompletedTodos ||
+        !task.isCompleted ||
+        completedAt == null) {
+      return;
+    }
+
+    final deadline = completedAt.add(
+      Duration(hours: _autoDeleteCompletedTodosAfterHours),
+    );
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      unawaited(_deleteTodoIfExpired(task.id));
+      return;
+    }
+    _todoDeletionTimers[task.id] = Timer(
+      remaining,
+      () => unawaited(_deleteTodoIfExpired(task.id)),
+    );
+  }
+
+  Future<void> _deleteTodoIfExpired(String taskId) async {
+    _todoDeletionTimers.remove(taskId)?.cancel();
+    if (!mounted || !_autoDeleteCompletedTodos) return;
+    final task = tasks[TaskType.todo]!
+        .where((candidate) => candidate.id == taskId)
+        .firstOrNull;
+    if (task == null || !task.isCompleted || task.completedAt == null) return;
+    final delay = Duration(hours: _autoDeleteCompletedTodosAfterHours);
+    if (!task.shouldAutoDelete(DateTime.now(), delay)) {
+      _scheduleTodoDeletion(task);
+      return;
+    }
+
+    setState(() => tasks[TaskType.todo]!.remove(task));
+    await _deleteTask(task);
   }
 
   Future<void> _applyNotificationSetting(bool enabled) async {
@@ -195,6 +279,9 @@ class _MainPageState extends State<MainPage> {
   @override
   void dispose() {
     widget.settings.removeListener(_settingsChanged);
+    for (final timer in _todoDeletionTimers.values) {
+      timer.cancel();
+    }
     controller.dispose();
     super.dispose();
   }

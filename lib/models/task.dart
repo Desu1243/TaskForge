@@ -100,6 +100,7 @@ class Task {
     this.reminder,
     this.habitCounters,
     this.isCompleted = false,
+    this.completedAt,
     this.lastCompletedDate,
     this.positiveCount = 0,
     this.negativeCount = 0,
@@ -116,6 +117,7 @@ class Task {
   final TaskReminder? reminder;
   final HabitCounters? habitCounters;
   bool isCompleted;
+  DateTime? completedAt;
   DateTime? lastCompletedDate;
   int positiveCount;
   int negativeCount;
@@ -186,7 +188,18 @@ class Task {
       _historyEntryFor(date).dailyCompleted = completed;
     } else {
       isCompleted = completed;
+      if (type == TaskType.todo) {
+        completedAt = completed ? (completedAt ?? date) : null;
+      }
     }
+  }
+
+  bool shouldAutoDelete(DateTime now, Duration delay) {
+    final completionDate = completedAt;
+    return type == TaskType.todo &&
+        isCompleted &&
+        completionDate != null &&
+        !completionDate.add(delay).isAfter(now);
   }
 
   bool backfillHistoryThrough(DateTime endDate) {
@@ -232,6 +245,7 @@ class Task {
             'negativeEnabled': habitCounters!.negativeEnabled,
           },
     'isCompleted': isCompleted,
+    'completedAt': completedAt?.toIso8601String(),
     'lastCompletedDate': lastCompletedDate?.toIso8601String(),
     'positiveCount': positiveCount,
     'negativeCount': negativeCount,
@@ -264,6 +278,7 @@ class Task {
               negativeEnabled: countersJson['negativeEnabled'] as bool? ?? true,
             ),
       isCompleted: json['isCompleted'] as bool? ?? false,
+      completedAt: _optionalDate(json['completedAt']),
       lastCompletedDate: _optionalDate(json['lastCompletedDate']),
       positiveCount: (json['positiveCount'] as num?)?.toInt() ?? 0,
       negativeCount: (json['negativeCount'] as num?)?.toInt() ?? 0,

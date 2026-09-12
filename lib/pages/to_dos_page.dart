@@ -68,7 +68,7 @@ class _TodoTile extends StatelessWidget {
                   : DefaultTheme.yellow,
               child: InkWell(
                 onTap: () {
-                  task.isCompleted = !isCompleted;
+                  task.setCompletedOn(DateTime.now(), completed: !isCompleted);
                   onChanged(task);
                 },
                 child: SizedBox(

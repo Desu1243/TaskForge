@@ -15,6 +15,51 @@ class SettingsPage extends StatelessWidget {
     if (time != null) settings.setDefaultReminderTime(time);
   }
 
+  Future<void> _selectAutoDeleteDelay(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final controller = TextEditingController(
+      text: settings.autoDeleteCompletedTodosAfterHours.toString(),
+    );
+    final hours = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete completed To-do's after"),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Hours',
+              suffixText: 'h',
+            ),
+            validator: (value) {
+              final parsed = int.tryParse(value?.trim() ?? '');
+              return parsed == null || parsed < 1
+                  ? 'Enter a positive whole number'
+                  : null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(context, int.parse(controller.text.trim()));
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (hours != null) settings.setAutoDeleteCompletedTodosAfterHours(hours);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -76,6 +121,27 @@ class SettingsPage extends StatelessWidget {
                 ? (value) {
                     if (value != null) settings.setAutoAddTaskType(value);
                   }
+                : null,
+          ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.auto_delete_outlined),
+            title: const Text("Auto-delete completed To-do's"),
+            subtitle: Text(
+              'Delete ${settings.autoDeleteCompletedTodosAfterHours} hours after completion',
+            ),
+            value: settings.autoDeleteCompletedTodos,
+            onChanged: settings.setAutoDeleteCompletedTodos,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            enabled: settings.autoDeleteCompletedTodos,
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Delete after'),
+            trailing: Text('${settings.autoDeleteCompletedTodosAfterHours} h'),
+            onTap: settings.autoDeleteCompletedTodos
+                ? () => _selectAutoDeleteDelay(context)
                 : null,
           ),
           const SizedBox(height: 24),

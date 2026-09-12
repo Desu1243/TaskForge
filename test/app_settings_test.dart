@@ -13,6 +13,8 @@ void main() {
 
     expect(settings.autoAddTaskOnLaunch, isFalse);
     expect(settings.autoAddTaskType, TaskType.todo);
+    expect(settings.autoDeleteCompletedTodos, isFalse);
+    expect(settings.autoDeleteCompletedTodosAfterHours, 24);
   });
 
   test('loads automatic task creation preferences', () async {
@@ -20,11 +22,15 @@ void main() {
         InMemorySharedPreferencesAsync.withData({
           'auto_add_task_on_launch': true,
           'auto_add_task_type': TaskType.daily.name,
+          'auto_delete_completed_todos': true,
+          'auto_delete_completed_todos_after_hours': 72,
         });
 
     final settings = await AppSettings.load();
 
     expect(settings.autoAddTaskOnLaunch, isTrue);
     expect(settings.autoAddTaskType, TaskType.daily);
+    expect(settings.autoDeleteCompletedTodos, isTrue);
+    expect(settings.autoDeleteCompletedTodosAfterHours, 72);
   });
 }

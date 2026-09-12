@@ -196,6 +196,7 @@ class NotificationService {
   }
 
   Future<void> _scheduleTaskWithoutCancelling(Task task) async {
+    if (task.type == TaskType.todo && task.isCompleted) return;
     final reminder = task.reminder;
     if (reminder == null) return;
 

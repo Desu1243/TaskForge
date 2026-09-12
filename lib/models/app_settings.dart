@@ -18,6 +18,8 @@ class AppSettings extends ChangeNotifier {
     required bool hideEmptyHabitHistory,
     required bool autoAddTaskOnLaunch,
     required TaskType autoAddTaskType,
+    required bool autoDeleteCompletedTodos,
+    required int autoDeleteCompletedTodosAfterHours,
     required AppTheme appTheme,
   }) : _preferences = preferences,
        _launchScreen = launchScreen,
@@ -27,6 +29,8 @@ class AppSettings extends ChangeNotifier {
        _hideEmptyHabitHistory = hideEmptyHabitHistory,
        _autoAddTaskOnLaunch = autoAddTaskOnLaunch,
        _autoAddTaskType = autoAddTaskType,
+       _autoDeleteCompletedTodos = autoDeleteCompletedTodos,
+       _autoDeleteCompletedTodosAfterHours = autoDeleteCompletedTodosAfterHours,
        _appTheme = appTheme;
 
   static const _launchScreenKey = 'launch_screen';
@@ -36,6 +40,9 @@ class AppSettings extends ChangeNotifier {
   static const _hideEmptyHabitHistoryKey = 'hide_empty_habit_history';
   static const _autoAddTaskOnLaunchKey = 'auto_add_task_on_launch';
   static const _autoAddTaskTypeKey = 'auto_add_task_type';
+  static const _autoDeleteCompletedTodosKey = 'auto_delete_completed_todos';
+  static const _autoDeleteCompletedTodosAfterHoursKey =
+      'auto_delete_completed_todos_after_hours';
   static const _appThemeKey = 'app_theme';
 
   final SharedPreferencesAsync _preferences;
@@ -46,6 +53,8 @@ class AppSettings extends ChangeNotifier {
   bool _hideEmptyHabitHistory;
   bool _autoAddTaskOnLaunch;
   TaskType _autoAddTaskType;
+  bool _autoDeleteCompletedTodos;
+  int _autoDeleteCompletedTodosAfterHours;
   AppTheme _appTheme;
 
   LaunchScreen get launchScreen => _launchScreen;
@@ -55,6 +64,9 @@ class AppSettings extends ChangeNotifier {
   bool get hideEmptyHabitHistory => _hideEmptyHabitHistory;
   bool get autoAddTaskOnLaunch => _autoAddTaskOnLaunch;
   TaskType get autoAddTaskType => _autoAddTaskType;
+  bool get autoDeleteCompletedTodos => _autoDeleteCompletedTodos;
+  int get autoDeleteCompletedTodosAfterHours =>
+      _autoDeleteCompletedTodosAfterHours;
   AppTheme get appTheme => _appTheme;
   ThemeMode get themeMode =>
       _appTheme == AppTheme.dark ? ThemeMode.dark : ThemeMode.light;
@@ -82,6 +94,11 @@ class AppSettings extends ChangeNotifier {
           await preferences.getBool(_autoAddTaskOnLaunchKey) ?? false,
       autoAddTaskType:
           TaskType.values.asNameMap()[autoAddTaskTypeName] ?? TaskType.todo,
+      autoDeleteCompletedTodos:
+          await preferences.getBool(_autoDeleteCompletedTodosKey) ?? false,
+      autoDeleteCompletedTodosAfterHours:
+          await preferences.getInt(_autoDeleteCompletedTodosAfterHoursKey) ??
+          24,
       appTheme: AppTheme.values.asNameMap()[appThemeName] ?? AppTheme.dark,
     );
   }
@@ -131,6 +148,22 @@ class AppSettings extends ChangeNotifier {
     _autoAddTaskType = value;
     notifyListeners();
     unawaited(_preferences.setString(_autoAddTaskTypeKey, value.name));
+  }
+
+  void setAutoDeleteCompletedTodos(bool value) {
+    if (_autoDeleteCompletedTodos == value) return;
+    _autoDeleteCompletedTodos = value;
+    notifyListeners();
+    unawaited(_preferences.setBool(_autoDeleteCompletedTodosKey, value));
+  }
+
+  void setAutoDeleteCompletedTodosAfterHours(int value) {
+    if (value < 1 || _autoDeleteCompletedTodosAfterHours == value) return;
+    _autoDeleteCompletedTodosAfterHours = value;
+    notifyListeners();
+    unawaited(
+      _preferences.setInt(_autoDeleteCompletedTodosAfterHoursKey, value),
+    );
   }
 
   void setAppTheme(AppTheme value) {

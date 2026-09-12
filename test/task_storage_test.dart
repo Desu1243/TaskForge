@@ -102,4 +102,48 @@ void main() {
     expect(restored.historyEntryOn(unscheduledTuesday), isNotNull);
     expect(restored.historyEntryOn(unscheduledTuesday)!.dailyCompleted, isTrue);
   });
+
+  test(
+    'saves To-do completion time and calculates auto-delete deadline',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'taskforge_test_',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final storage = TaskStorage.forDirectory(directory);
+      final completedAt = DateTime(2026, 9, 12, 10);
+      final task = Task(
+        id: 'todo-1',
+        type: TaskType.todo,
+        title: 'Send report',
+        notes: '',
+        schedule: const TodoSchedule(),
+      );
+
+      task.setCompletedOn(completedAt, completed: true);
+      await storage.saveTask(task);
+      final loaded = await storage.loadAll();
+      final restored = loaded[TaskType.todo]!.single;
+
+      expect(restored.isCompleted, isTrue);
+      expect(restored.completedAt, completedAt);
+      expect(
+        restored.shouldAutoDelete(
+          completedAt.add(const Duration(hours: 23)),
+          const Duration(hours: 24),
+        ),
+        isFalse,
+      );
+      expect(
+        restored.shouldAutoDelete(
+          completedAt.add(const Duration(hours: 24)),
+          const Duration(hours: 24),
+        ),
+        isTrue,
+      );
+
+      restored.setCompletedOn(DateTime.now(), completed: false);
+      expect(restored.completedAt, isNull);
+    },
+  );
 }

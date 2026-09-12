@@ -251,6 +251,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             )
           : null,
       isCompleted: editedTask?.isCompleted ?? false,
+      completedAt: editedTask?.completedAt,
       lastCompletedDate: editedTask?.lastCompletedDate,
       positiveCount: editedTask?.positiveCount ?? 0,
       negativeCount: editedTask?.negativeCount ?? 0,

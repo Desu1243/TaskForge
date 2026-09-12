@@ -24,6 +24,7 @@ class _LoadingPageState extends State<LoadingPage> {
     try {
       final storage = await TaskStorage.open();
       final tasks = await storage.loadAll();
+      await _removeExpiredCompletedTodos(tasks, storage);
       final notificationService = await NotificationService.open();
       if (widget.settings.notificationsEnabled) {
         final permissionResult = await notificationService.requestPermission();
@@ -74,6 +75,28 @@ class _LoadingPageState extends State<LoadingPage> {
       );
     } on Object catch (error) {
       if (mounted) setState(() => _loadingError = error);
+    }
+  }
+
+  Future<void> _removeExpiredCompletedTodos(
+    Map<TaskType, List<Task>> tasks,
+    TaskStorage storage,
+  ) async {
+    if (!widget.settings.autoDeleteCompletedTodos) return;
+    final now = DateTime.now();
+    final delay = Duration(
+      hours: widget.settings.autoDeleteCompletedTodosAfterHours,
+    );
+    final todos = tasks[TaskType.todo]!;
+    for (final task in List<Task>.of(todos)) {
+      if (!task.isCompleted) continue;
+      if (task.completedAt == null) {
+        task.completedAt = now;
+        await storage.saveTask(task);
+      } else if (task.shouldAutoDelete(now, delay)) {
+        todos.remove(task);
+        await storage.deleteTask(task);
+      }
     }
   }
 
