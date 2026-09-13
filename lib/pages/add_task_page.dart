@@ -136,11 +136,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Future<void> _pickDueDate() async {
     final date = await showDatePicker(
       context: context,
+      locale: widget.settings.firstDayOfWeek == FirstDayOfWeek.monday
+          ? const Locale('en', 'GB')
+          : const Locale('en', 'US'),
       initialDate: _dueDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
-    if (date != null) setState(() => _dueDate = date);
+    if (date != null && mounted) setState(() => _dueDate = date);
   }
 
   Future<void> _pickReminderTime() async {
@@ -413,10 +416,21 @@ class _AddTaskPageState extends State<AddTaskPage> {
     required Set<int> selectedWeekdays,
     Set<int>? allowedWeekdays,
   }) {
-    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const labels = {
+      DateTime.monday: 'M',
+      DateTime.tuesday: 'T',
+      DateTime.wednesday: 'W',
+      DateTime.thursday: 'T',
+      DateTime.friday: 'F',
+      DateTime.saturday: 'S',
+      DateTime.sunday: 'S',
+    };
+    final weekdays = widget.settings.firstDayOfWeek == FirstDayOfWeek.monday
+        ? const [1, 2, 3, 4, 5, 6, 7]
+        : const [7, 1, 2, 3, 4, 5, 6];
     return Row(
-      children: List.generate(labels.length, (index) {
-        final weekday = index + 1;
+      children: List.generate(weekdays.length, (index) {
+        final weekday = weekdays[index];
         final enabled = allowedWeekdays?.contains(weekday) ?? true;
         final selected = selectedWeekdays.contains(weekday) && enabled;
         return Expanded(
@@ -449,7 +463,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
-                  labels[index],
+                  labels[weekday]!,
                   style: TextStyle(
                     color: enabled
                         ? null

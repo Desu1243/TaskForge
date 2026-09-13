@@ -17,9 +17,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _selectAutoDeleteDelay(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
-    final controller = TextEditingController(
-      text: settings.autoDeleteCompletedTodosAfterHours.toString(),
-    );
+    var enteredHours = settings.autoDeleteCompletedTodosAfterHours.toString();
     final hours = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
@@ -27,9 +25,10 @@ class SettingsPage extends StatelessWidget {
         content: Form(
           key: formKey,
           child: TextFormField(
-            controller: controller,
+            initialValue: enteredHours,
             autofocus: true,
             keyboardType: TextInputType.number,
+            onChanged: (value) => enteredHours = value,
             decoration: const InputDecoration(
               labelText: 'Hours',
               suffixText: 'h',
@@ -50,7 +49,7 @@ class SettingsPage extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
-              Navigator.pop(context, int.parse(controller.text.trim()));
+              Navigator.pop(context, int.parse(enteredHours.trim()));
             },
             child: const Text('Save'),
           ),
@@ -92,6 +91,28 @@ class SettingsPage extends StatelessWidget {
             ],
             onChanged: (value) {
               if (value != null) settings.setLaunchScreen(value);
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<FirstDayOfWeek>(
+            initialValue: settings.firstDayOfWeek,
+            decoration: const InputDecoration(
+              labelText: 'First day of week',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.date_range_outlined),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: FirstDayOfWeek.monday,
+                child: Text('Monday'),
+              ),
+              DropdownMenuItem(
+                value: FirstDayOfWeek.sunday,
+                child: Text('Sunday'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) settings.setFirstDayOfWeek(value);
             },
           ),
           SwitchListTile(

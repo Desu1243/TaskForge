@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/pages/loading_page.dart';
 import 'package:taskforge/themes/default_theme.dart';
@@ -86,6 +87,12 @@ class TaskForgeApp extends StatelessWidget {
         theme: _buildLightTheme(),
         darkTheme: _buildDarkTheme(),
         themeMode: settings.themeMode,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en', 'GB'), Locale('en', 'US')],
         home: SafeArea(child: LoadingPage(settings: settings)),
       ),
     );

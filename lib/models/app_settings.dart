@@ -6,6 +6,8 @@ import 'package:taskforge/models/task.dart';
 
 enum LaunchScreen { habits, dailies, todos }
 
+enum FirstDayOfWeek { monday, sunday }
+
 enum AppTheme { dark, light }
 
 class AppSettings extends ChangeNotifier {
@@ -20,6 +22,7 @@ class AppSettings extends ChangeNotifier {
     required TaskType autoAddTaskType,
     required bool autoDeleteCompletedTodos,
     required int autoDeleteCompletedTodosAfterHours,
+    required FirstDayOfWeek firstDayOfWeek,
     required AppTheme appTheme,
   }) : _preferences = preferences,
        _launchScreen = launchScreen,
@@ -31,6 +34,7 @@ class AppSettings extends ChangeNotifier {
        _autoAddTaskType = autoAddTaskType,
        _autoDeleteCompletedTodos = autoDeleteCompletedTodos,
        _autoDeleteCompletedTodosAfterHours = autoDeleteCompletedTodosAfterHours,
+       _firstDayOfWeek = firstDayOfWeek,
        _appTheme = appTheme;
 
   static const _launchScreenKey = 'launch_screen';
@@ -43,6 +47,7 @@ class AppSettings extends ChangeNotifier {
   static const _autoDeleteCompletedTodosKey = 'auto_delete_completed_todos';
   static const _autoDeleteCompletedTodosAfterHoursKey =
       'auto_delete_completed_todos_after_hours';
+  static const _firstDayOfWeekKey = 'first_day_of_week';
   static const _appThemeKey = 'app_theme';
 
   final SharedPreferencesAsync _preferences;
@@ -55,6 +60,7 @@ class AppSettings extends ChangeNotifier {
   TaskType _autoAddTaskType;
   bool _autoDeleteCompletedTodos;
   int _autoDeleteCompletedTodosAfterHours;
+  FirstDayOfWeek _firstDayOfWeek;
   AppTheme _appTheme;
 
   LaunchScreen get launchScreen => _launchScreen;
@@ -67,6 +73,7 @@ class AppSettings extends ChangeNotifier {
   bool get autoDeleteCompletedTodos => _autoDeleteCompletedTodos;
   int get autoDeleteCompletedTodosAfterHours =>
       _autoDeleteCompletedTodosAfterHours;
+  FirstDayOfWeek get firstDayOfWeek => _firstDayOfWeek;
   AppTheme get appTheme => _appTheme;
   ThemeMode get themeMode =>
       _appTheme == AppTheme.dark ? ThemeMode.dark : ThemeMode.light;
@@ -78,6 +85,7 @@ class AppSettings extends ChangeNotifier {
       _autoAddTaskTypeKey,
     );
     final appThemeName = await preferences.getString(_appThemeKey);
+    final firstDayOfWeekName = await preferences.getString(_firstDayOfWeekKey);
 
     return AppSettings._(
       preferences: preferences,
@@ -99,6 +107,9 @@ class AppSettings extends ChangeNotifier {
       autoDeleteCompletedTodosAfterHours:
           await preferences.getInt(_autoDeleteCompletedTodosAfterHoursKey) ??
           24,
+      firstDayOfWeek:
+          FirstDayOfWeek.values.asNameMap()[firstDayOfWeekName] ??
+          FirstDayOfWeek.monday,
       appTheme: AppTheme.values.asNameMap()[appThemeName] ?? AppTheme.dark,
     );
   }
@@ -164,6 +175,13 @@ class AppSettings extends ChangeNotifier {
     unawaited(
       _preferences.setInt(_autoDeleteCompletedTodosAfterHoursKey, value),
     );
+  }
+
+  void setFirstDayOfWeek(FirstDayOfWeek value) {
+    if (_firstDayOfWeek == value) return;
+    _firstDayOfWeek = value;
+    notifyListeners();
+    unawaited(_preferences.setString(_firstDayOfWeekKey, value.name));
   }
 
   void setAppTheme(AppTheme value) {

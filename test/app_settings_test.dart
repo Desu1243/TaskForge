@@ -15,6 +15,7 @@ void main() {
     expect(settings.autoAddTaskType, TaskType.todo);
     expect(settings.autoDeleteCompletedTodos, isFalse);
     expect(settings.autoDeleteCompletedTodosAfterHours, 24);
+    expect(settings.firstDayOfWeek, FirstDayOfWeek.monday);
   });
 
   test('loads automatic task creation preferences', () async {
@@ -24,6 +25,7 @@ void main() {
           'auto_add_task_type': TaskType.daily.name,
           'auto_delete_completed_todos': true,
           'auto_delete_completed_todos_after_hours': 72,
+          'first_day_of_week': FirstDayOfWeek.sunday.name,
         });
 
     final settings = await AppSettings.load();
@@ -32,5 +34,6 @@ void main() {
     expect(settings.autoAddTaskType, TaskType.daily);
     expect(settings.autoDeleteCompletedTodos, isTrue);
     expect(settings.autoDeleteCompletedTodosAfterHours, 72);
+    expect(settings.firstDayOfWeek, FirstDayOfWeek.sunday);
   });
 }
