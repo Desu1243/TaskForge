@@ -103,6 +103,39 @@ void main() {
     expect(restored.historyEntryOn(unscheduledTuesday)!.dailyCompleted, isTrue);
   });
 
+  test('finds the most recent scheduled Daily occurrence', () {
+    final task = Task(
+      id: 'daily-schedule',
+      type: TaskType.daily,
+      title: 'Weekly review',
+      notes: '',
+      schedule: const DailySchedule(
+        activeWeekdays: {DateTime.monday, DateTime.thursday},
+      ),
+      createdAt: DateTime(2026, 9, 1),
+    );
+
+    expect(
+      task.mostRecentScheduledDateBefore(DateTime(2026, 9, 13)),
+      DateTime(2026, 9, 10),
+    );
+    task.setCompletedOn(DateTime(2026, 9, 10), completed: true);
+    expect(task.isCompletedOn(DateTime(2026, 9, 10)), isTrue);
+  });
+
+  test('does not find a scheduled occurrence from before task creation', () {
+    final task = Task(
+      id: 'new-daily',
+      type: TaskType.daily,
+      title: 'New Daily',
+      notes: '',
+      schedule: const DailySchedule(activeWeekdays: {DateTime.monday}),
+      createdAt: DateTime(2026, 9, 8),
+    );
+
+    expect(task.mostRecentScheduledDateBefore(DateTime(2026, 9, 9)), isNull);
+  });
+
   test(
     'saves To-do completion time and calculates auto-delete deadline',
     () async {

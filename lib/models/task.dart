@@ -208,7 +208,7 @@ class Task {
     var date = dateOnly(createdAt);
     final end = dateOnly(endDate);
     while (!date.isAfter(end)) {
-      if (_isScheduledOn(date) && historyEntryOn(date) == null) {
+      if (isScheduledOn(date) && historyEntryOn(date) == null) {
         history.add(TaskHistoryEntry(date: date));
         changed = true;
       }
@@ -220,7 +220,7 @@ class Task {
     return changed;
   }
 
-  bool _isScheduledOn(DateTime date) => switch (schedule) {
+  bool isScheduledOn(DateTime date) => switch (schedule) {
     DailySchedule(:final activeWeekdays) => activeWeekdays.contains(
       date.weekday,
     ),
@@ -229,6 +229,22 @@ class Task {
     ),
     _ => false,
   };
+
+  DateTime? mostRecentScheduledDateBefore(DateTime date) {
+    if (type != TaskType.daily) return null;
+    final normalizedDate = dateOnly(date);
+    final creationDate = dateOnly(createdAt);
+    for (var daysAgo = 1; daysAgo <= DateTime.daysPerWeek; daysAgo++) {
+      final candidate = DateTime(
+        normalizedDate.year,
+        normalizedDate.month,
+        normalizedDate.day - daysAgo,
+      );
+      if (candidate.isBefore(creationDate)) return null;
+      if (isScheduledOn(candidate)) return candidate;
+    }
+    return null;
+  }
 
   Map<String, dynamic> toJson() => {
     'version': 1,

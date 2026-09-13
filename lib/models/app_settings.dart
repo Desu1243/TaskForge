@@ -18,6 +18,8 @@ class AppSettings extends ChangeNotifier {
     required int defaultReminderMinute,
     required bool notificationsEnabled,
     required bool hideEmptyHabitHistory,
+    required bool reviewSkippedDailies,
+    required DateTime? lastDailyReviewDate,
     required bool autoAddTaskOnLaunch,
     required TaskType autoAddTaskType,
     required bool autoDeleteCompletedTodos,
@@ -30,6 +32,8 @@ class AppSettings extends ChangeNotifier {
        _defaultReminderMinute = defaultReminderMinute,
        _notificationsEnabled = notificationsEnabled,
        _hideEmptyHabitHistory = hideEmptyHabitHistory,
+       _reviewSkippedDailies = reviewSkippedDailies,
+       _lastDailyReviewDate = lastDailyReviewDate,
        _autoAddTaskOnLaunch = autoAddTaskOnLaunch,
        _autoAddTaskType = autoAddTaskType,
        _autoDeleteCompletedTodos = autoDeleteCompletedTodos,
@@ -42,6 +46,8 @@ class AppSettings extends ChangeNotifier {
   static const _reminderMinuteKey = 'default_reminder_minute';
   static const _notificationsEnabledKey = 'notifications_enabled';
   static const _hideEmptyHabitHistoryKey = 'hide_empty_habit_history';
+  static const _reviewSkippedDailiesKey = 'review_skipped_dailies';
+  static const _lastDailyReviewDateKey = 'last_daily_review_date';
   static const _autoAddTaskOnLaunchKey = 'auto_add_task_on_launch';
   static const _autoAddTaskTypeKey = 'auto_add_task_type';
   static const _autoDeleteCompletedTodosKey = 'auto_delete_completed_todos';
@@ -56,6 +62,8 @@ class AppSettings extends ChangeNotifier {
   int _defaultReminderMinute;
   bool _notificationsEnabled;
   bool _hideEmptyHabitHistory;
+  bool _reviewSkippedDailies;
+  DateTime? _lastDailyReviewDate;
   bool _autoAddTaskOnLaunch;
   TaskType _autoAddTaskType;
   bool _autoDeleteCompletedTodos;
@@ -68,6 +76,7 @@ class AppSettings extends ChangeNotifier {
       TimeOfDay(hour: _defaultReminderHour, minute: _defaultReminderMinute);
   bool get notificationsEnabled => _notificationsEnabled;
   bool get hideEmptyHabitHistory => _hideEmptyHabitHistory;
+  bool get reviewSkippedDailies => _reviewSkippedDailies;
   bool get autoAddTaskOnLaunch => _autoAddTaskOnLaunch;
   TaskType get autoAddTaskType => _autoAddTaskType;
   bool get autoDeleteCompletedTodos => _autoDeleteCompletedTodos;
@@ -98,6 +107,11 @@ class AppSettings extends ChangeNotifier {
           await preferences.getBool(_notificationsEnabledKey) ?? true,
       hideEmptyHabitHistory:
           await preferences.getBool(_hideEmptyHabitHistoryKey) ?? true,
+      reviewSkippedDailies:
+          await preferences.getBool(_reviewSkippedDailiesKey) ?? false,
+      lastDailyReviewDate: DateTime.tryParse(
+        await preferences.getString(_lastDailyReviewDateKey) ?? '',
+      ),
       autoAddTaskOnLaunch:
           await preferences.getBool(_autoAddTaskOnLaunchKey) ?? false,
       autoAddTaskType:
@@ -145,6 +159,28 @@ class AppSettings extends ChangeNotifier {
     _hideEmptyHabitHistory = value;
     notifyListeners();
     unawaited(_preferences.setBool(_hideEmptyHabitHistoryKey, value));
+  }
+
+  void setReviewSkippedDailies(bool value) {
+    if (_reviewSkippedDailies == value) return;
+    _reviewSkippedDailies = value;
+    notifyListeners();
+    unawaited(_preferences.setBool(_reviewSkippedDailiesKey, value));
+  }
+
+  bool wasDailyReviewShownOn(DateTime date) {
+    final lastReviewDate = _lastDailyReviewDate;
+    return lastReviewDate != null &&
+        Task.dateOnly(lastReviewDate) == Task.dateOnly(date);
+  }
+
+  Future<void> markDailyReviewShownOn(DateTime date) async {
+    final normalizedDate = Task.dateOnly(date);
+    _lastDailyReviewDate = normalizedDate;
+    await _preferences.setString(
+      _lastDailyReviewDateKey,
+      normalizedDate.toIso8601String(),
+    );
   }
 
   void setAutoAddTaskOnLaunch(bool value) {

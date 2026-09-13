@@ -188,6 +188,16 @@ class SettingsPage extends StatelessWidget {
           Text('History', style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.fact_check_outlined),
+            title: const Text("Review yesterday's skipped Dailies"),
+            subtitle: const Text(
+              'Ask once per day after opening the task lists',
+            ),
+            value: settings.reviewSkippedDailies,
+            onChanged: settings.setReviewSkippedDailies,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.filter_alt_outlined),
             title: const Text('Auto hide empty habit records in history'),
             value: settings.hideEmptyHabitHistory,

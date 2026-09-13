@@ -10,6 +10,7 @@ import 'package:taskforge/pages/to_dos_page.dart';
 import 'package:taskforge/pages/settings_page.dart';
 import 'package:taskforge/services/notification_service.dart';
 import 'package:taskforge/services/task_storage.dart';
+import 'package:taskforge/themes/default_theme.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({
@@ -58,6 +59,117 @@ class _MainPageState extends State<MainPage> {
     };
     controller = PageController(initialPage: currentPage, keepPage: true);
     unawaited(_reconcileTodoDeletionTimers());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_maybeShowYesterdayDailyReview());
+    });
+  }
+
+  Future<void> _maybeShowYesterdayDailyReview() async {
+    if (!widget.settings.reviewSkippedDailies) return;
+
+    final today = Task.dateOnly(DateTime.now());
+    if (widget.settings.wasDailyReviewShownOn(today)) return;
+
+    final skippedOccurrences = <({Task task, DateTime date})>[];
+    for (final task in tasks[TaskType.daily]!) {
+      final scheduledDate = task.mostRecentScheduledDateBefore(today);
+      if (scheduledDate != null && !task.isCompletedOn(scheduledDate)) {
+        skippedOccurrences.add((task: task, date: scheduledDate));
+      }
+    }
+    if (skippedOccurrences.isEmpty) return;
+
+    await widget.settings.markDailyReviewShownOn(today);
+    if (!mounted) return;
+
+    final completedTaskIds = await _showDailyReviewDialog(skippedOccurrences);
+    if (completedTaskIds == null || completedTaskIds.isEmpty || !mounted) {
+      return;
+    }
+
+    final correctedOccurrences = skippedOccurrences
+        .where((occurrence) => completedTaskIds.contains(occurrence.task.id))
+        .toList();
+    setState(() {
+      for (final occurrence in correctedOccurrences) {
+        occurrence.task.setCompletedOn(occurrence.date, completed: true);
+      }
+    });
+    for (final occurrence in correctedOccurrences) {
+      await _saveTask(occurrence.task);
+    }
+  }
+
+  Future<Set<String>?> _showDailyReviewDialog(
+    List<({Task task, DateTime date})> skippedOccurrences,
+  ) {
+    final selectedTaskIds = <String>{};
+    return showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 40,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Did you forget to mark a task as completed?',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select any Dailies you completed on their most recent scheduled day.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: skippedOccurrences.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final task = skippedOccurrences[index].task;
+                        final selected = selectedTaskIds.contains(task.id);
+                        return _DailyReviewTile(
+                          title: task.title,
+                          selected: selected,
+                          onTap: () {
+                            setDialogState(() {
+                              if (selected) {
+                                selectedTaskIds.remove(task.id);
+                              } else {
+                                selectedTaskIds.add(task.id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(
+                      dialogContext,
+                      Set<String>.of(selectedTaskIds),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   TaskType? get currentTaskType => switch (currentPage) {
@@ -503,6 +615,80 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyReviewTile extends StatelessWidget {
+  const _DailyReviewTile({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Material(
+        color: colors.surfaceContainer,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 52,
+                  color: selected
+                      ? colors.surfaceContainer
+                      : DefaultTheme.yellow,
+                  alignment: Alignment.center,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 27,
+                    height: 27,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? DefaultTheme.gray
+                          : DefaultTheme.darkYellow,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: selected
+                        ? const Icon(Icons.check, size: 19, color: Colors.white)
+                        : null,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? colors.onSurfaceVariant.withValues(alpha: 0.65)
+                              : colors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
