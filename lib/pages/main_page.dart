@@ -361,7 +361,7 @@ class _MainPageState extends State<MainPage> {
       final permissionResult = await widget.notificationService
           .requestPermission();
       if (permissionResult == NotificationPermissionResult.denied) {
-        widget.settings.setNotificationsEnabled(false);
+        await widget.notificationService.cancelAll();
         _showStorageError('Notification permission was not granted.');
         return;
       }

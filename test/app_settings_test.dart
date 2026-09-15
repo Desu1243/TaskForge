@@ -17,6 +17,7 @@ void main() {
     expect(settings.autoDeleteCompletedTodosAfterHours, 24);
     expect(settings.firstDayOfWeek, FirstDayOfWeek.monday);
     expect(settings.reviewSkippedDailies, isFalse);
+    expect(settings.notificationsDisabledByUser, isFalse);
   });
 
   test('loads automatic task creation preferences', () async {
@@ -53,5 +54,39 @@ void main() {
 
     expect(restored.wasDailyReviewShownOn(DateTime(2026, 9, 13)), isTrue);
     expect(restored.wasDailyReviewShownOn(DateTime(2026, 9, 14)), isFalse);
+  });
+
+  test(
+    'restores a legacy disabled state after system permission grant',
+    () async {
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.withData({
+            'notifications_enabled': false,
+          });
+      final settings = await AppSettings.load();
+
+      expect(settings.notificationsEnabled, isFalse);
+      expect(settings.notificationsDisabledByUser, isFalse);
+
+      await settings.restoreNotificationsAfterPermissionGrant();
+
+      expect(settings.notificationsEnabled, isTrue);
+      final restored = await AppSettings.load();
+      expect(restored.notificationsEnabled, isTrue);
+    },
+  );
+
+  test('does not restore notifications explicitly disabled by user', () async {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.withData({
+          'notifications_enabled': false,
+          'notifications_disabled_by_user': true,
+        });
+    final settings = await AppSettings.load();
+
+    await settings.restoreNotificationsAfterPermissionGrant();
+
+    expect(settings.notificationsEnabled, isFalse);
+    expect(settings.notificationsDisabledByUser, isTrue);
   });
 }

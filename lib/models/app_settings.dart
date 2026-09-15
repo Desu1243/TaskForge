@@ -17,6 +17,7 @@ class AppSettings extends ChangeNotifier {
     required int defaultReminderHour,
     required int defaultReminderMinute,
     required bool notificationsEnabled,
+    required bool notificationsDisabledByUser,
     required bool hideEmptyHabitHistory,
     required bool reviewSkippedDailies,
     required DateTime? lastDailyReviewDate,
@@ -31,6 +32,7 @@ class AppSettings extends ChangeNotifier {
        _defaultReminderHour = defaultReminderHour,
        _defaultReminderMinute = defaultReminderMinute,
        _notificationsEnabled = notificationsEnabled,
+       _notificationsDisabledByUser = notificationsDisabledByUser,
        _hideEmptyHabitHistory = hideEmptyHabitHistory,
        _reviewSkippedDailies = reviewSkippedDailies,
        _lastDailyReviewDate = lastDailyReviewDate,
@@ -45,6 +47,8 @@ class AppSettings extends ChangeNotifier {
   static const _reminderHourKey = 'default_reminder_hour';
   static const _reminderMinuteKey = 'default_reminder_minute';
   static const _notificationsEnabledKey = 'notifications_enabled';
+  static const _notificationsDisabledByUserKey =
+      'notifications_disabled_by_user';
   static const _hideEmptyHabitHistoryKey = 'hide_empty_habit_history';
   static const _reviewSkippedDailiesKey = 'review_skipped_dailies';
   static const _lastDailyReviewDateKey = 'last_daily_review_date';
@@ -61,6 +65,7 @@ class AppSettings extends ChangeNotifier {
   int _defaultReminderHour;
   int _defaultReminderMinute;
   bool _notificationsEnabled;
+  bool _notificationsDisabledByUser;
   bool _hideEmptyHabitHistory;
   bool _reviewSkippedDailies;
   DateTime? _lastDailyReviewDate;
@@ -75,6 +80,7 @@ class AppSettings extends ChangeNotifier {
   TimeOfDay get defaultReminderTime =>
       TimeOfDay(hour: _defaultReminderHour, minute: _defaultReminderMinute);
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get notificationsDisabledByUser => _notificationsDisabledByUser;
   bool get hideEmptyHabitHistory => _hideEmptyHabitHistory;
   bool get reviewSkippedDailies => _reviewSkippedDailies;
   bool get autoAddTaskOnLaunch => _autoAddTaskOnLaunch;
@@ -105,6 +111,8 @@ class AppSettings extends ChangeNotifier {
       defaultReminderMinute: await preferences.getInt(_reminderMinuteKey) ?? 0,
       notificationsEnabled:
           await preferences.getBool(_notificationsEnabledKey) ?? true,
+      notificationsDisabledByUser:
+          await preferences.getBool(_notificationsDisabledByUserKey) ?? false,
       hideEmptyHabitHistory:
           await preferences.getBool(_hideEmptyHabitHistoryKey) ?? true,
       reviewSkippedDailies:
@@ -148,10 +156,25 @@ class AppSettings extends ChangeNotifier {
   }
 
   void setNotificationsEnabled(bool value) {
-    if (_notificationsEnabled == value) return;
+    final disabledByUser = !value;
+    if (_notificationsEnabled == value &&
+        _notificationsDisabledByUser == disabledByUser) {
+      return;
+    }
     _notificationsEnabled = value;
+    _notificationsDisabledByUser = disabledByUser;
     notifyListeners();
     unawaited(_preferences.setBool(_notificationsEnabledKey, value));
+    unawaited(
+      _preferences.setBool(_notificationsDisabledByUserKey, disabledByUser),
+    );
+  }
+
+  Future<void> restoreNotificationsAfterPermissionGrant() async {
+    if (_notificationsEnabled || _notificationsDisabledByUser) return;
+    _notificationsEnabled = true;
+    notifyListeners();
+    await _preferences.setBool(_notificationsEnabledKey, true);
   }
 
   void setHideEmptyHabitHistory(bool value) {

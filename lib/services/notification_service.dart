@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:taskforge/models/task.dart';
@@ -16,6 +17,9 @@ class NotificationService {
   }) : _available = available;
 
   static const _timezoneChannel = MethodChannel('taskforge/timezone');
+  static const _notificationPermissionChannel = MethodChannel(
+    'taskforge/notification_permission',
+  );
   static const _notificationDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       'task_reminders',
@@ -113,12 +117,13 @@ class NotificationService {
     if (android == null) return NotificationPermissionResult.granted;
 
     try {
-      var notificationsGranted =
-          await android.areNotificationsEnabled() ?? false;
-      if (!notificationsGranted) {
-        notificationsGranted =
-            await android.requestNotificationsPermission() ?? false;
-      }
+      final notificationsGranted =
+          defaultTargetPlatform == TargetPlatform.android
+          ? await _notificationPermissionChannel.invokeMethod<bool>(
+                  'requestNotificationPermission',
+                ) ??
+                false
+          : await android.requestNotificationsPermission() ?? false;
       if (!notificationsGranted) {
         return NotificationPermissionResult.denied;
       }

@@ -26,13 +26,19 @@ class _LoadingPageState extends State<LoadingPage> {
       final tasks = await storage.loadAll();
       await _removeExpiredCompletedTodos(tasks, storage);
       final notificationService = await NotificationService.open();
-      if (widget.settings.notificationsEnabled) {
+      var notificationsGranted = false;
+      final shouldCheckPermission =
+          widget.settings.notificationsEnabled ||
+          !widget.settings.notificationsDisabledByUser;
+      if (shouldCheckPermission) {
         final permissionResult = await notificationService.requestPermission();
-        if (permissionResult == NotificationPermissionResult.denied) {
-          widget.settings.setNotificationsEnabled(false);
+        notificationsGranted =
+            permissionResult == NotificationPermissionResult.granted;
+        if (notificationsGranted) {
+          await widget.settings.restoreNotificationsAfterPermissionGrant();
         }
       }
-      if (widget.settings.notificationsEnabled) {
+      if (widget.settings.notificationsEnabled && notificationsGranted) {
         await notificationService.syncAll(
           tasks.values.expand((taskList) => taskList),
         );
