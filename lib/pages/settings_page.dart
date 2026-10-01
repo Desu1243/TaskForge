@@ -174,13 +174,29 @@ class SettingsPage extends StatelessWidget {
             value: settings.notificationsEnabled,
             onChanged: settings.setNotificationsEnabled,
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.access_time),
+            title: const Text('Use current time as default'),
+            subtitle: const Text(
+              'New reminders start at the time the task form is opened',
+            ),
+            value: settings.useCurrentTimeAsDefaultReminder,
+            onChanged: settings.notificationsEnabled
+                ? settings.setUseCurrentTimeAsDefaultReminder
+                : null,
+          ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            enabled: settings.notificationsEnabled,
+            enabled:
+                settings.notificationsEnabled &&
+                !settings.useCurrentTimeAsDefaultReminder,
             leading: const Icon(Icons.schedule),
             title: const Text('Default reminder time'),
             trailing: Text(settings.defaultReminderTime.format(context)),
-            onTap: settings.notificationsEnabled
+            onTap:
+                settings.notificationsEnabled &&
+                    !settings.useCurrentTimeAsDefaultReminder
                 ? () => _selectReminderTime(context)
                 : null,
           ),

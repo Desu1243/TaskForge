@@ -68,7 +68,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   @override
   void initState() {
     super.initState();
-    _reminderTime = widget.settings.defaultReminderTime;
+    _reminderTime = widget.settings.defaultReminderTimeAt(DateTime.now());
     final task = widget.task;
     if (task == null) return;
 
@@ -152,6 +152,19 @@ class _AddTaskPageState extends State<AddTaskPage> {
       initialTime: _reminderTime,
     );
     if (time != null) setState(() => _reminderTime = time);
+  }
+
+  void _adjustReminderTime(int minutes) {
+    const minutesPerDay = Duration.hoursPerDay * Duration.minutesPerHour;
+    final currentMinutes =
+        _reminderTime.hour * Duration.minutesPerHour + _reminderTime.minute;
+    final adjustedMinutes = (currentMinutes + minutes) % minutesPerDay;
+    setState(() {
+      _reminderTime = TimeOfDay(
+        hour: adjustedMinutes ~/ Duration.minutesPerHour,
+        minute: adjustedMinutes % Duration.minutesPerHour,
+      );
+    });
   }
 
   Future<void> _openHistory() async {
@@ -356,12 +369,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 ),
                 const SizedBox(height: 8),
               ],
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Time'),
-                trailing: Text(_reminderTime.format(context)),
-                onTap: _pickReminderTime,
-              ),
+              const Text('Time'),
+              const SizedBox(height: 8),
+              _buildReminderTimeControls(),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _reminderTitleController,
                 decoration: InputDecoration(
@@ -405,6 +416,46 @@ class _AddTaskPageState extends State<AddTaskPage> {
               icon: const Icon(Icons.clear),
             ),
       onTap: _pickDueDate,
+    );
+  }
+
+  Widget _buildReminderTimeControls() {
+    return Row(
+      children: [
+        _buildTimeAdjustmentButton('-1h', -60),
+        const SizedBox(width: 4),
+        _buildTimeAdjustmentButton('-15min', -15),
+        const SizedBox(width: 4),
+        Expanded(
+          flex: 2,
+          child: FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            onPressed: _pickReminderTime,
+            child: Text(_reminderTime.format(context)),
+          ),
+        ),
+        const SizedBox(width: 4),
+        _buildTimeAdjustmentButton('+15min', 15),
+        const SizedBox(width: 4),
+        _buildTimeAdjustmentButton('+1h', 60),
+      ],
+    );
+  }
+
+  Widget _buildTimeAdjustmentButton(String label, int minutes) {
+    return Expanded(
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+        onPressed: () => _adjustReminderTime(minutes),
+        child: Text(label, maxLines: 1),
+      ),
     );
   }
 

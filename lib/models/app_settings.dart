@@ -16,6 +16,7 @@ class AppSettings extends ChangeNotifier {
     required LaunchScreen launchScreen,
     required int defaultReminderHour,
     required int defaultReminderMinute,
+    required bool useCurrentTimeAsDefaultReminder,
     required bool notificationsEnabled,
     required bool notificationsDisabledByUser,
     required bool hideEmptyHabitHistory,
@@ -31,6 +32,7 @@ class AppSettings extends ChangeNotifier {
        _launchScreen = launchScreen,
        _defaultReminderHour = defaultReminderHour,
        _defaultReminderMinute = defaultReminderMinute,
+       _useCurrentTimeAsDefaultReminder = useCurrentTimeAsDefaultReminder,
        _notificationsEnabled = notificationsEnabled,
        _notificationsDisabledByUser = notificationsDisabledByUser,
        _hideEmptyHabitHistory = hideEmptyHabitHistory,
@@ -46,6 +48,8 @@ class AppSettings extends ChangeNotifier {
   static const _launchScreenKey = 'launch_screen';
   static const _reminderHourKey = 'default_reminder_hour';
   static const _reminderMinuteKey = 'default_reminder_minute';
+  static const _useCurrentTimeAsDefaultReminderKey =
+      'use_current_time_as_default_reminder';
   static const _notificationsEnabledKey = 'notifications_enabled';
   static const _notificationsDisabledByUserKey =
       'notifications_disabled_by_user';
@@ -64,6 +68,7 @@ class AppSettings extends ChangeNotifier {
   LaunchScreen _launchScreen;
   int _defaultReminderHour;
   int _defaultReminderMinute;
+  bool _useCurrentTimeAsDefaultReminder;
   bool _notificationsEnabled;
   bool _notificationsDisabledByUser;
   bool _hideEmptyHabitHistory;
@@ -79,6 +84,12 @@ class AppSettings extends ChangeNotifier {
   LaunchScreen get launchScreen => _launchScreen;
   TimeOfDay get defaultReminderTime =>
       TimeOfDay(hour: _defaultReminderHour, minute: _defaultReminderMinute);
+  bool get useCurrentTimeAsDefaultReminder => _useCurrentTimeAsDefaultReminder;
+
+  TimeOfDay defaultReminderTimeAt(DateTime now) =>
+      _useCurrentTimeAsDefaultReminder
+      ? TimeOfDay.fromDateTime(now)
+      : defaultReminderTime;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get notificationsDisabledByUser => _notificationsDisabledByUser;
   bool get hideEmptyHabitHistory => _hideEmptyHabitHistory;
@@ -109,6 +120,9 @@ class AppSettings extends ChangeNotifier {
           LaunchScreen.habits,
       defaultReminderHour: await preferences.getInt(_reminderHourKey) ?? 9,
       defaultReminderMinute: await preferences.getInt(_reminderMinuteKey) ?? 0,
+      useCurrentTimeAsDefaultReminder:
+          await preferences.getBool(_useCurrentTimeAsDefaultReminderKey) ??
+          false,
       notificationsEnabled:
           await preferences.getBool(_notificationsEnabledKey) ?? true,
       notificationsDisabledByUser:
@@ -153,6 +167,13 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
     unawaited(_preferences.setInt(_reminderHourKey, value.hour));
     unawaited(_preferences.setInt(_reminderMinuteKey, value.minute));
+  }
+
+  void setUseCurrentTimeAsDefaultReminder(bool value) {
+    if (_useCurrentTimeAsDefaultReminder == value) return;
+    _useCurrentTimeAsDefaultReminder = value;
+    notifyListeners();
+    unawaited(_preferences.setBool(_useCurrentTimeAsDefaultReminderKey, value));
   }
 
   void setNotificationsEnabled(bool value) {

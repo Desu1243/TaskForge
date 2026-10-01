@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
@@ -18,6 +19,27 @@ void main() {
     expect(settings.firstDayOfWeek, FirstDayOfWeek.monday);
     expect(settings.reviewSkippedDailies, isFalse);
     expect(settings.notificationsDisabledByUser, isFalse);
+    expect(settings.useCurrentTimeAsDefaultReminder, isFalse);
+    expect(
+      settings.defaultReminderTimeAt(DateTime(2026, 10, 1, 14, 37)),
+      const TimeOfDay(hour: 9, minute: 0),
+    );
+  });
+
+  test('uses and persists current time as the reminder default', () async {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    final settings = await AppSettings.load();
+
+    settings.setUseCurrentTimeAsDefaultReminder(true);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      settings.defaultReminderTimeAt(DateTime(2026, 10, 1, 14, 37)),
+      const TimeOfDay(hour: 14, minute: 37),
+    );
+    final restored = await AppSettings.load();
+    expect(restored.useCurrentTimeAsDefaultReminder, isTrue);
   });
 
   test('loads automatic task creation preferences', () async {
