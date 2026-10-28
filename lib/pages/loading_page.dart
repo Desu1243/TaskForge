@@ -24,6 +24,13 @@ class _LoadingPageState extends State<LoadingPage> {
     try {
       final storage = await TaskStorage.open();
       final tasks = await storage.loadAll();
+      final tagIds = widget.settings.tags.map((tag) => tag.id).toSet();
+      for (final task in tasks.values.expand((list) => list)) {
+        if (task.tagIds.any((id) => !tagIds.contains(id))) {
+          task.tagIds.retainAll(tagIds);
+          await storage.saveTask(task);
+        }
+      }
       await _removeExpiredCompletedTodos(tasks, storage);
       final notificationService = await NotificationService.open();
       var notificationsGranted = false;

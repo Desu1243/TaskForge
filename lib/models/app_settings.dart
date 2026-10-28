@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/models/task_tag.dart';
 
 enum LaunchScreen { habits, dailies, todos }
 
@@ -28,6 +30,10 @@ class AppSettings extends ChangeNotifier {
     required int autoDeleteCompletedTodosAfterHours,
     required FirstDayOfWeek firstDayOfWeek,
     required AppTheme appTheme,
+    required List<TaskTag> tags,
+    required bool showTagColorBars,
+    required int tagColorBarHeight,
+    required TagAddButtonVisibility tagAddButtonVisibility,
   }) : _preferences = preferences,
        _launchScreen = launchScreen,
        _defaultReminderHour = defaultReminderHour,
@@ -43,7 +49,11 @@ class AppSettings extends ChangeNotifier {
        _autoDeleteCompletedTodos = autoDeleteCompletedTodos,
        _autoDeleteCompletedTodosAfterHours = autoDeleteCompletedTodosAfterHours,
        _firstDayOfWeek = firstDayOfWeek,
-       _appTheme = appTheme;
+       _appTheme = appTheme,
+       _tags = tags,
+       _showTagColorBars = showTagColorBars,
+       _tagColorBarHeight = tagColorBarHeight,
+       _tagAddButtonVisibility = tagAddButtonVisibility;
 
   static const _launchScreenKey = 'launch_screen';
   static const _reminderHourKey = 'default_reminder_hour';
@@ -63,6 +73,10 @@ class AppSettings extends ChangeNotifier {
       'auto_delete_completed_todos_after_hours';
   static const _firstDayOfWeekKey = 'first_day_of_week';
   static const _appThemeKey = 'app_theme';
+  static const _tagsKey = 'task_tags';
+  static const _showTagColorBarsKey = 'show_tag_color_bars';
+  static const _tagColorBarHeightKey = 'tag_color_bar_height';
+  static const _tagAddButtonVisibilityKey = 'tag_add_button_visibility';
 
   final SharedPreferencesAsync _preferences;
   LaunchScreen _launchScreen;
@@ -80,6 +94,65 @@ class AppSettings extends ChangeNotifier {
   int _autoDeleteCompletedTodosAfterHours;
   FirstDayOfWeek _firstDayOfWeek;
   AppTheme _appTheme;
+  List<TaskTag> _tags;
+  bool _showTagColorBars;
+  int _tagColorBarHeight;
+  TagAddButtonVisibility _tagAddButtonVisibility;
+  Future<void> _pendingTagWrite = Future<void>.value();
+
+  List<TaskTag> get tags => List.unmodifiable(_tags);
+  bool get showTagColorBars => _showTagColorBars;
+  int get tagColorBarHeight => _tagColorBarHeight;
+  TagAddButtonVisibility get tagAddButtonVisibility => _tagAddButtonVisibility;
+
+  Future<void> saveTag(TaskTag tag) => _updateTags((updated) {
+    final index = updated.indexWhere((item) => item.id == tag.id);
+    if (index < 0) {
+      updated.add(tag);
+    } else {
+      updated[index] = tag;
+    }
+    return updated;
+  });
+
+  Future<void> deleteTag(String id) =>
+      _updateTags((tags) => tags.where((tag) => tag.id != id).toList());
+
+  Future<void> _updateTags(List<TaskTag> Function(List<TaskTag>) update) {
+    final write = _pendingTagWrite.then((_) async {
+      final tags = update(List<TaskTag>.of(_tags));
+      await _preferences.setString(
+        _tagsKey,
+        jsonEncode(tags.map((tag) => tag.toJson()).toList()),
+      );
+      _tags = tags;
+      notifyListeners();
+    });
+    _pendingTagWrite = write.catchError((Object _) {});
+    return write;
+  }
+
+  void setShowTagColorBars(bool value) {
+    if (_showTagColorBars == value) return;
+    _showTagColorBars = value;
+    notifyListeners();
+    unawaited(_preferences.setBool(_showTagColorBarsKey, value));
+  }
+
+  void setTagColorBarHeight(int value) {
+    final height = value.clamp(1, 20);
+    if (_tagColorBarHeight == height) return;
+    _tagColorBarHeight = height;
+    notifyListeners();
+    unawaited(_preferences.setInt(_tagColorBarHeightKey, height));
+  }
+
+  void setTagAddButtonVisibility(TagAddButtonVisibility value) {
+    if (_tagAddButtonVisibility == value) return;
+    _tagAddButtonVisibility = value;
+    notifyListeners();
+    unawaited(_preferences.setString(_tagAddButtonVisibilityKey, value.name));
+  }
 
   LaunchScreen get launchScreen => _launchScreen;
   TimeOfDay get defaultReminderTime =>
@@ -112,6 +185,20 @@ class AppSettings extends ChangeNotifier {
     );
     final appThemeName = await preferences.getString(_appThemeKey);
     final firstDayOfWeekName = await preferences.getString(_firstDayOfWeekKey);
+    final tagButtonName = await preferences.getString(
+      _tagAddButtonVisibilityKey,
+    );
+    final tags = <TaskTag>[];
+    final encodedTags = await preferences.getString(_tagsKey);
+    if (encodedTags != null) {
+      try {
+        for (final item in jsonDecode(encodedTags) as List<dynamic>) {
+          tags.add(TaskTag.fromJson(Map<String, dynamic>.from(item as Map)));
+        }
+      } on FormatException {
+        // Older settings remain usable if the tag registry cannot be decoded.
+      }
+    }
 
     return AppSettings._(
       preferences: preferences,
@@ -147,6 +234,13 @@ class AppSettings extends ChangeNotifier {
           FirstDayOfWeek.values.asNameMap()[firstDayOfWeekName] ??
           FirstDayOfWeek.monday,
       appTheme: AppTheme.values.asNameMap()[appThemeName] ?? AppTheme.dark,
+      tags: tags,
+      showTagColorBars: await preferences.getBool(_showTagColorBarsKey) ?? true,
+      tagColorBarHeight: (await preferences.getInt(_tagColorBarHeightKey) ?? 4)
+          .clamp(1, 20),
+      tagAddButtonVisibility:
+          TagAddButtonVisibility.values.asNameMap()[tagButtonName] ??
+          TagAddButtonVisibility.both,
     );
   }
 

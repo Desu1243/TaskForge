@@ -11,6 +11,7 @@ import 'package:taskforge/pages/settings_page.dart';
 import 'package:taskforge/services/notification_service.dart';
 import 'package:taskforge/services/task_storage.dart';
 import 'package:taskforge/themes/default_theme.dart';
+import 'package:taskforge/widgets/task_tags.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({
@@ -247,6 +248,7 @@ class _MainPageState extends State<MainPage> {
 
   Future<void> _saveTask(Task task) async {
     try {
+      task.tagIds.retainAll(widget.settings.tags.map((tag) => tag.id));
       final now = DateTime.now();
       task.backfillHistoryThrough(DateTime(now.year, now.month, now.day - 1));
       await widget.storage.saveTask(task);
@@ -278,6 +280,13 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _settingsChanged() {
+    final tagIds = widget.settings.tags.map((tag) => tag.id).toSet();
+    for (final task in tasks.values.expand((list) => list)) {
+      if (task.tagIds.any((id) => !tagIds.contains(id))) {
+        task.tagIds.retainAll(tagIds);
+        unawaited(_saveTask(task));
+      }
+    }
     final enabled = widget.settings.notificationsEnabled;
     if (_notificationsEnabled != enabled) {
       _notificationsEnabled = enabled;
@@ -411,20 +420,35 @@ class _MainPageState extends State<MainPage> {
           });
         },
         children: [
-          HabitsPage(
+          TaskTagList(
+            settings: widget.settings,
             tasks: tasks[TaskType.habit]!,
-            onChanged: taskChanged,
-            onEdit: editTask,
+            builder: (filtered) => HabitsPage(
+              tasks: filtered,
+              settings: widget.settings,
+              onChanged: taskChanged,
+              onEdit: editTask,
+            ),
           ),
-          DailiesPage(
+          TaskTagList(
+            settings: widget.settings,
             tasks: tasks[TaskType.daily]!,
-            onChanged: taskChanged,
-            onEdit: editTask,
+            builder: (filtered) => DailiesPage(
+              tasks: filtered,
+              settings: widget.settings,
+              onChanged: taskChanged,
+              onEdit: editTask,
+            ),
           ),
-          ToDosPage(
+          TaskTagList(
+            settings: widget.settings,
             tasks: tasks[TaskType.todo]!,
-            onChanged: taskChanged,
-            onEdit: editTask,
+            builder: (filtered) => ToDosPage(
+              tasks: filtered,
+              settings: widget.settings,
+              onChanged: taskChanged,
+              onEdit: editTask,
+            ),
           ),
           SettingsPage(settings: widget.settings),
         ],

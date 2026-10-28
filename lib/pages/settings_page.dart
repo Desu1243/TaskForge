@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/models/task_tag.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({required this.settings, super.key});
@@ -199,6 +200,61 @@ class SettingsPage extends StatelessWidget {
                     !settings.useCurrentTimeAsDefaultReminder
                 ? () => _selectReminderTime(context)
                 : null,
+          ),
+          const SizedBox(height: 24),
+          Text('Tags', style: Theme.of(context).textTheme.titleMedium),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.label_outline),
+            title: const Text('Show tag color bars on tasks'),
+            value: settings.showTagColorBars,
+            onChanged: settings.setShowTagColorBars,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            enabled: settings.showTagColorBars,
+            title: const Text('Tag color bar height'),
+            trailing: Text('${settings.tagColorBarHeight} px'),
+          ),
+          Slider(
+            min: 1,
+            max: 20,
+            divisions: 19,
+            label: '${settings.tagColorBarHeight} px',
+            value: settings.tagColorBarHeight.toDouble(),
+            onChanged: settings.showTagColorBars
+                ? (value) => settings.setTagColorBarHeight(value.round())
+                : null,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<TagAddButtonVisibility>(
+            initialValue: settings.tagAddButtonVisibility,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Show add tag button',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: TagAddButtonVisibility.both,
+                child: Text('On both screens'),
+              ),
+              DropdownMenuItem(
+                value: TagAddButtonVisibility.listsOnly,
+                child: Text('Only on task lists'),
+              ),
+              DropdownMenuItem(
+                value: TagAddButtonVisibility.tasksOnly,
+                child: Text('Only in task forms'),
+              ),
+              DropdownMenuItem(
+                value: TagAddButtonVisibility.hidden,
+                child: Text('Hidden'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) settings.setTagAddButtonVisibility(value);
+            },
           ),
           const SizedBox(height: 24),
           Text('History', style: Theme.of(context).textTheme.titleMedium),

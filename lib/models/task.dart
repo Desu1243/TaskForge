@@ -106,7 +106,9 @@ class Task {
     this.negativeCount = 0,
     DateTime? createdAt,
     List<TaskHistoryEntry>? history,
+    Set<String>? tagIds,
   }) : createdAt = createdAt ?? DateTime.now(),
+       tagIds = Set.of(tagIds ?? const {}),
        history = history ?? [];
 
   final String id;
@@ -123,6 +125,7 @@ class Task {
   int negativeCount;
   final DateTime createdAt;
   final List<TaskHistoryEntry> history;
+  final Set<String> tagIds;
 
   static DateTime dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
@@ -252,6 +255,7 @@ class Task {
     'type': type.name,
     'title': title,
     'notes': notes,
+    'tagIds': tagIds.toList(),
     'schedule': _scheduleToJson(schedule),
     'reminder': reminder == null ? null : _reminderToJson(reminder!),
     'habitCounters': habitCounters == null
@@ -280,6 +284,9 @@ class Task {
       type: type,
       title: json['title'] as String,
       notes: json['notes'] as String? ?? '',
+      tagIds: (json['tagIds'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toSet(),
       schedule: _scheduleFromJson(
         Map<String, dynamic>.from(json['schedule'] as Map),
       ),

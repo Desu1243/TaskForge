@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/widgets/task_tags.dart';
 import 'package:taskforge/themes/default_theme.dart';
 
 class DailiesPage extends StatelessWidget {
   const DailiesPage({
     required this.tasks,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
     super.key,
   });
 
   final List<Task> tasks;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -33,8 +37,12 @@ class DailiesPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 96),
       itemCount: tasks.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) =>
-          _DailyTile(task: tasks[index], onChanged: onChanged, onEdit: onEdit),
+      itemBuilder: (context, index) => _DailyTile(
+        task: tasks[index],
+        settings: settings,
+        onChanged: onChanged,
+        onEdit: onEdit,
+      ),
     );
   }
 }
@@ -42,11 +50,13 @@ class DailiesPage extends StatelessWidget {
 class _DailyTile extends StatelessWidget {
   const _DailyTile({
     required this.task,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
   });
 
   final Task task;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -108,11 +118,15 @@ class _DailyTile extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Material(
-                color: colors.surfaceContainer,
-                child: InkWell(
-                  onTap: () => onEdit(task),
-                  child: _DailyContent(task: task, isCompleted: isCompleted),
+              child: TaskTagContent(
+                task: task,
+                settings: settings,
+                child: Material(
+                  color: colors.surfaceContainer,
+                  child: InkWell(
+                    onTap: () => onEdit(task),
+                    child: _DailyContent(task: task, isCompleted: isCompleted),
+                  ),
                 ),
               ),
             ),

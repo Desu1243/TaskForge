@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/widgets/task_tags.dart';
 import 'package:taskforge/themes/default_theme.dart';
 
 class HabitsPage extends StatelessWidget {
   const HabitsPage({
     required this.tasks,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
     super.key,
   });
 
   final List<Task> tasks;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -33,8 +37,12 @@ class HabitsPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 96),
       itemCount: tasks.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) =>
-          _HabitTile(task: tasks[index], onChanged: onChanged, onEdit: onEdit),
+      itemBuilder: (context, index) => _HabitTile(
+        task: tasks[index],
+        settings: settings,
+        onChanged: onChanged,
+        onEdit: onEdit,
+      ),
     );
   }
 }
@@ -42,11 +50,13 @@ class HabitsPage extends StatelessWidget {
 class _HabitTile extends StatelessWidget {
   const _HabitTile({
     required this.task,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
   });
 
   final Task task;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -103,53 +113,57 @@ class _HabitTile extends StatelessWidget {
               },
             ),
             Expanded(
-              child: Material(
-                color: colors.surfaceContainer,
-                child: InkWell(
-                  onTap: () => onEdit(task),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          task.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: colors.onSurface),
-                        ),
-                        if (task.notes.isNotEmpty) ...[
-                          const SizedBox(height: 3),
+              child: TaskTagContent(
+                task: task,
+                settings: settings,
+                child: Material(
+                  color: colors.surfaceContainer,
+                  child: InkWell(
+                    onTap: () => onEdit(task),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            task.notes,
-                            maxLines: 2,
+                            task.title,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 11,
-                            ),
+                            style: TextStyle(color: colors.onSurface),
                           ),
-                        ],
-                        if (hasCounterValue) ...[
-                          const SizedBox(height: 3),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              _counterLabel(counters),
+                          if (task.notes.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              task.notes,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: colors.onSurfaceVariant.withValues(
-                                  alpha: 0.65,
-                                ),
+                                color: colors.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
-                          ),
+                          ],
+                          if (hasCounterValue) ...[
+                            const SizedBox(height: 3),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                _counterLabel(counters),
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),

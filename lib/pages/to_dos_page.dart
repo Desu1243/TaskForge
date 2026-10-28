@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:taskforge/models/task.dart';
+import 'package:taskforge/models/app_settings.dart';
+import 'package:taskforge/widgets/task_tags.dart';
 import 'package:taskforge/themes/default_theme.dart';
 
 class ToDosPage extends StatelessWidget {
   const ToDosPage({
     required this.tasks,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
     super.key,
   });
 
   final List<Task> tasks;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -33,8 +37,12 @@ class ToDosPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 96),
       itemCount: tasks.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) =>
-          _TodoTile(task: tasks[index], onChanged: onChanged, onEdit: onEdit),
+      itemBuilder: (context, index) => _TodoTile(
+        task: tasks[index],
+        settings: settings,
+        onChanged: onChanged,
+        onEdit: onEdit,
+      ),
     );
   }
 }
@@ -42,11 +50,13 @@ class ToDosPage extends StatelessWidget {
 class _TodoTile extends StatelessWidget {
   const _TodoTile({
     required this.task,
+    required this.settings,
     required this.onChanged,
     required this.onEdit,
   });
 
   final Task task;
+  final AppSettings settings;
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
@@ -97,47 +107,51 @@ class _TodoTile extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Material(
-                color: colors.surfaceContainer,
-                child: InkWell(
-                  onTap: () => onEdit(task),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          task.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isCompleted
-                                ? colors.onSurfaceVariant.withValues(
-                                    alpha: 0.65,
-                                  )
-                                : colors.onSurface,
-                          ),
-                        ),
-                        if (task.notes.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+              child: TaskTagContent(
+                task: task,
+                settings: settings,
+                child: Material(
+                  color: colors.surfaceContainer,
+                  child: InkWell(
+                    onTap: () => onEdit(task),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            task.notes,
-                            maxLines: 2,
+                            task.title,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: colors.onSurfaceVariant.withValues(
-                                alpha: 0.75,
-                              ),
-                              fontSize: 12,
+                              color: isCompleted
+                                  ? colors.onSurfaceVariant.withValues(
+                                      alpha: 0.65,
+                                    )
+                                  : colors.onSurface,
                             ),
                           ),
+                          if (task.notes.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              task.notes,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant.withValues(
+                                  alpha: 0.75,
+                                ),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),

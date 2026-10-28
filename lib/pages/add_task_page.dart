@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
 import 'package:taskforge/pages/task_history_page.dart';
+import 'package:taskforge/widgets/task_tags.dart';
 
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({
@@ -56,6 +57,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   bool _reminderEnabled = false;
   bool _positiveCounterEnabled = true;
   bool _negativeCounterEnabled = true;
+  Set<String> _tagIds = {};
 
   bool get _isEditing => widget.task != null;
 
@@ -75,6 +77,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     assert(task.type == widget.taskType);
     _titleController.text = task.title;
     _notesController.text = task.notes;
+    _tagIds = Set.of(task.tagIds);
 
     final schedule = task.schedule;
     if (schedule is TodoSchedule) {
@@ -246,6 +249,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
       type: widget.taskType,
       title: _titleController.text.trim(),
       notes: _notesController.text.trim(),
+      tagIds: _tagIds.intersection(
+        widget.settings.tags.map((tag) => tag.id).toSet(),
+      ),
       schedule: schedule,
       habitCounters: widget.taskType == TaskType.habit
           ? HabitCounters(
@@ -335,6 +341,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 24),
+            Text('Tags', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            TaskTagPicker(
+              settings: widget.settings,
+              selected: _tagIds,
+              onChanged: (selected) => setState(() => _tagIds = selected),
             ),
             const SizedBox(height: 24),
             Text('Scheduling', style: Theme.of(context).textTheme.titleLarge),
