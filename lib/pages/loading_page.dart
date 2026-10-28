@@ -54,16 +54,37 @@ class _LoadingPageState extends State<LoadingPage> {
       }
       if (!mounted) return;
 
-      if (widget.settings.autoAddTaskOnLaunch) {
-        final task = await Navigator.push<Task>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddTaskPage(
-              taskType: widget.settings.autoAddTaskType,
-              settings: widget.settings,
-            ),
-          ),
+      if (widget.settings.autoAddTaskOnLaunch &&
+          !notificationService.launchedFromNotification &&
+          notificationService.notificationTaskId.value == null) {
+        final loadingRoute = ModalRoute.of(context);
+        void handleNotificationTap() {
+          if (!mounted ||
+              notificationService.notificationTaskId.value == null) {
+            return;
+          }
+          Navigator.of(context).popUntil((route) => route == loadingRoute);
+        }
+
+        notificationService.notificationTaskId.addListener(
+          handleNotificationTap,
         );
+        Task? task;
+        try {
+          task = await Navigator.push<Task>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddTaskPage(
+                taskType: widget.settings.autoAddTaskType,
+                settings: widget.settings,
+              ),
+            ),
+          );
+        } finally {
+          notificationService.notificationTaskId.removeListener(
+            handleNotificationTap,
+          );
+        }
         if (!mounted) return;
         if (task != null) {
           tasks[task.type]!.add(task);

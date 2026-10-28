@@ -30,6 +30,8 @@ Task todo(String id, Set<String> tags) => Task(
 
 class _UnusedNotifications implements NotificationService {
   @override
+  final notificationTaskId = ValueNotifier<String?>(null);
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

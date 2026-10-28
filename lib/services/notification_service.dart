@@ -14,6 +14,8 @@ class NotificationService {
     this._plugin,
     this._scheduleMode, {
     required bool available,
+    required this.notificationTaskId,
+    this.launchedFromNotification = false,
   }) : _available = available;
 
   static const _timezoneChannel = MethodChannel('taskforge/timezone');
@@ -33,6 +35,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin;
   AndroidScheduleMode _scheduleMode;
   final bool _available;
+  final ValueNotifier<String?> notificationTaskId;
+  final bool launchedFromNotification;
 
   static Future<NotificationService> open() async {
     tz_data.initializeTimeZones();
@@ -47,6 +51,8 @@ class NotificationService {
     configureLocalTimezone(timezoneName);
 
     final plugin = FlutterLocalNotificationsPlugin();
+    final notificationTaskId = ValueNotifier<String?>(null);
+    var launchedFromNotification = false;
     bool initialized;
     try {
       initialized =
@@ -54,6 +60,12 @@ class NotificationService {
             settings: const InitializationSettings(
               android: AndroidInitializationSettings('ic_stat_taskforge'),
             ),
+            onDidReceiveNotificationResponse: (response) {
+              final taskId = response.payload;
+              if (taskId != null && taskId.isNotEmpty) {
+                notificationTaskId.value = taskId;
+              }
+            },
           ) ??
           false;
     } on Object catch (error, stackTrace) {
@@ -67,6 +79,8 @@ class NotificationService {
         plugin,
         AndroidScheduleMode.inexactAllowWhileIdle,
         available: false,
+        notificationTaskId: notificationTaskId,
+        launchedFromNotification: launchedFromNotification,
       );
     }
 
@@ -79,6 +93,24 @@ class NotificationService {
         plugin,
         AndroidScheduleMode.inexactAllowWhileIdle,
         available: false,
+        notificationTaskId: notificationTaskId,
+        launchedFromNotification: launchedFromNotification,
+      );
+    }
+
+    try {
+      final launchDetails = await plugin.getNotificationAppLaunchDetails();
+      launchedFromNotification =
+          launchDetails?.didNotificationLaunchApp ?? false;
+      if (launchedFromNotification && notificationTaskId.value == null) {
+        notificationTaskId.value = launchDetails?.notificationResponse?.payload;
+      }
+    } on Object catch (error, stackTrace) {
+      developer.log(
+        'Notification launch details could not be read.',
+        name: 'TaskForge.NotificationService',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
 
@@ -93,6 +125,8 @@ class NotificationService {
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
       available: true,
+      notificationTaskId: notificationTaskId,
+      launchedFromNotification: launchedFromNotification,
     );
   }
 

@@ -40,6 +40,49 @@ class _MainPageState extends State<MainPage> {
   late bool _autoDeleteCompletedTodos;
   late int _autoDeleteCompletedTodosAfterHours;
   final Map<String, Timer> _todoDeletionTimers = {};
+  final Map<TaskType, int> _tagListVersions = {};
+
+  Task? _notificationTask(String? id) => tasks.values
+      .expand((list) => list)
+      .where((task) => task.id == id)
+      .firstOrNull;
+
+  int _pageForTask(TaskType type) => switch (type) {
+    TaskType.habit => 0,
+    TaskType.daily => 1,
+    TaskType.todo => 2,
+  };
+
+  void _notificationTapped() {
+    if (widget.notificationService.notificationTaskId.value == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openNotificationTask();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _openNotificationTask() {
+    final taskId = widget.notificationService.notificationTaskId.value;
+    if (taskId == null) return;
+    widget.notificationService.notificationTaskId.value = null;
+    final mainRoute = ModalRoute.of(context);
+    Navigator.of(context).popUntil((route) => route == mainRoute);
+    final task = _notificationTask(taskId);
+    if (task == null) {
+      _showStorageError('This task is no longer available.');
+      return;
+    }
+    final page = _pageForTask(task.type);
+    setState(() {
+      currentPage = page;
+      _tagListVersions.update(
+        task.type,
+        (version) => version + 1,
+        ifAbsent: () => 1,
+      );
+    });
+    controller.jumpToPage(page);
+  }
 
   @override
   void initState() {
@@ -58,10 +101,23 @@ class _MainPageState extends State<MainPage> {
       LaunchScreen.dailies => 1,
       LaunchScreen.todos => 2,
     };
+    final notificationTask = _notificationTask(
+      widget.notificationService.notificationTaskId.value,
+    );
+    if (notificationTask != null) {
+      currentPage = _pageForTask(notificationTask.type);
+    }
     controller = PageController(initialPage: currentPage, keepPage: true);
+    widget.notificationService.notificationTaskId.addListener(
+      _notificationTapped,
+    );
     unawaited(_reconcileTodoDeletionTimers());
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_maybeShowYesterdayDailyReview());
+      if (widget.notificationService.notificationTaskId.value != null) {
+        _openNotificationTask();
+      } else {
+        unawaited(_maybeShowYesterdayDailyReview());
+      }
     });
   }
 
@@ -399,6 +455,9 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    widget.notificationService.notificationTaskId.removeListener(
+      _notificationTapped,
+    );
     widget.settings.removeListener(_settingsChanged);
     for (final timer in _todoDeletionTimers.values) {
       timer.cancel();
@@ -421,6 +480,7 @@ class _MainPageState extends State<MainPage> {
         },
         children: [
           TaskTagList(
+            key: ValueKey('habits-${_tagListVersions[TaskType.habit] ?? 0}'),
             settings: widget.settings,
             tasks: tasks[TaskType.habit]!,
             builder: (filtered) => HabitsPage(
@@ -431,6 +491,7 @@ class _MainPageState extends State<MainPage> {
             ),
           ),
           TaskTagList(
+            key: ValueKey('dailies-${_tagListVersions[TaskType.daily] ?? 0}'),
             settings: widget.settings,
             tasks: tasks[TaskType.daily]!,
             builder: (filtered) => DailiesPage(
@@ -441,6 +502,7 @@ class _MainPageState extends State<MainPage> {
             ),
           ),
           TaskTagList(
+            key: ValueKey('todos-${_tagListVersions[TaskType.todo] ?? 0}'),
             settings: widget.settings,
             tasks: tasks[TaskType.todo]!,
             builder: (filtered) => ToDosPage(
