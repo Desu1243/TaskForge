@@ -92,7 +92,7 @@ class TaskHistoryPage extends StatelessWidget {
       final entry = task.historyEntryOn(date);
       final isExtraDailyCompletion =
           task.type == TaskType.daily && (entry?.dailyCompleted ?? false);
-      if (_isScheduledOn(date) || isExtraDailyCompletion) {
+      if (task.isScheduledOn(date) || isExtraDailyCompletion) {
         final isToday = date == today;
         if (!isToday || entry != null) {
           result.add(
@@ -109,16 +109,6 @@ class TaskHistoryPage extends StatelessWidget {
     }
     return result;
   }
-
-  bool _isScheduledOn(DateTime date) => switch (task.schedule) {
-    DailySchedule(:final activeWeekdays) => activeWeekdays.contains(
-      date.weekday,
-    ),
-    HabitSchedule(:final activeWeekdays) => activeWeekdays.contains(
-      date.weekday,
-    ),
-    _ => false,
-  };
 }
 
 class _HistoryDay {

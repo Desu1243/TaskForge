@@ -15,12 +15,14 @@ class TaskReminder {
     required this.title,
     required this.message,
     this.activeWeekdays,
+    this.activeMonthDays,
   });
 
   final ReminderTime time;
   final String title;
   final String message;
   final Set<int>? activeWeekdays;
+  final Set<int>? activeMonthDays;
 }
 
 sealed class TaskSchedule {
@@ -34,9 +36,15 @@ class TodoSchedule extends TaskSchedule {
 }
 
 class DailySchedule extends TaskSchedule {
-  const DailySchedule({required this.activeWeekdays});
+  const DailySchedule({required this.activeWeekdays}) : activeMonthDays = null;
+
+  const DailySchedule.monthly({required this.activeMonthDays})
+    : assert(activeMonthDays != null),
+      activeWeekdays = const {};
 
   final Set<int> activeWeekdays;
+  final Set<int>? activeMonthDays;
+  bool get isMonthly => activeMonthDays != null;
 }
 
 class HabitSchedule extends TaskSchedule {
@@ -224,9 +232,9 @@ class Task {
   }
 
   bool isScheduledOn(DateTime date) => switch (schedule) {
-    DailySchedule(:final activeWeekdays) => activeWeekdays.contains(
-      date.weekday,
-    ),
+    DailySchedule(:final activeWeekdays, :final activeMonthDays) =>
+      activeMonthDays?.contains(date.day) ??
+          activeWeekdays.contains(date.weekday),
     HabitSchedule(:final activeWeekdays) => activeWeekdays.contains(
       date.weekday,
     ),
@@ -237,7 +245,12 @@ class Task {
     if (type != TaskType.daily) return null;
     final normalizedDate = dateOnly(date);
     final creationDate = dateOnly(createdAt);
-    for (var daysAgo = 1; daysAgo <= DateTime.daysPerWeek; daysAgo++) {
+    // A day such as the 31st can skip a short month (up to 62 days apart).
+    final lookbackDays =
+        schedule is DailySchedule && (schedule as DailySchedule).isMonthly
+        ? 62
+        : DateTime.daysPerWeek;
+    for (var daysAgo = 1; daysAgo <= lookbackDays; daysAgo++) {
       final candidate = DateTime(
         normalizedDate.year,
         normalizedDate.month,
@@ -323,9 +336,12 @@ class Task {
       'kind': 'todo',
       'dueDate': dueDate?.toIso8601String(),
     },
-    DailySchedule(:final activeWeekdays) => {
+    DailySchedule(:final activeWeekdays, :final activeMonthDays) => {
       'kind': 'daily',
+      'frequency': activeMonthDays == null ? 'weekly' : 'monthly',
       'activeWeekdays': activeWeekdays.toList()..sort(),
+      if (activeMonthDays != null)
+        'activeMonthDays': activeMonthDays.toList()..sort(),
     },
     HabitSchedule(:final activeWeekdays, :final targetCount, :final period) => {
       'kind': 'habit',
@@ -341,7 +357,13 @@ class Task {
         .toSet();
     return switch (json['kind']) {
       'todo' => TodoSchedule(dueDate: _optionalDate(json['dueDate'])),
-      'daily' => DailySchedule(activeWeekdays: weekdays),
+      'daily' =>
+        json['frequency'] == 'monthly'
+            ? DailySchedule.monthly(
+                activeMonthDays:
+                    _monthDaysFromJson(json['activeMonthDays']) ?? {},
+              )
+            : DailySchedule(activeWeekdays: weekdays),
       'habit' => HabitSchedule(
         activeWeekdays: weekdays,
         targetCount: (json['targetCount'] as num?)?.toInt() ?? 1,
@@ -361,6 +383,9 @@ class Task {
     'activeWeekdays': reminder.activeWeekdays == null
         ? null
         : (reminder.activeWeekdays!.toList()..sort()),
+    'activeMonthDays': reminder.activeMonthDays == null
+        ? null
+        : (reminder.activeMonthDays!.toList()..sort()),
   };
 
   static TaskReminder _reminderFromJson(Map<String, dynamic> json) =>
@@ -374,7 +399,16 @@ class Task {
         activeWeekdays: (json['activeWeekdays'] as List<dynamic>?)
             ?.map((value) => (value as num).toInt())
             .toSet(),
+        activeMonthDays: _monthDaysFromJson(json['activeMonthDays']),
       );
+
+  static Set<int>? _monthDaysFromJson(Object? value) => value == null
+      ? null
+      : (value as List<dynamic>)
+            .whereType<num>()
+            .map((day) => day.toInt())
+            .where((day) => day >= 1 && day <= 31)
+            .toSet();
 
   static DateTime? _optionalDate(Object? value) =>
       value is String ? DateTime.tryParse(value) : null;

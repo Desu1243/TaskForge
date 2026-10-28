@@ -65,10 +65,7 @@ class _DailyTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final isCompleted = task.isCompletedOn(today);
-    final schedule = task.schedule;
-    final isActiveToday =
-        schedule is DailySchedule &&
-        schedule.activeWeekdays.contains(today.weekday);
+    final isActiveToday = task.isScheduledOn(today);
     final controlColor = isCompleted
         ? colors.surfaceContainer
         : isActiveToday

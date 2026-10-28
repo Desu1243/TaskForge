@@ -57,7 +57,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
   bool _reminderEnabled = false;
   bool _positiveCounterEnabled = true;
   bool _negativeCounterEnabled = true;
+  bool _dailyMonthly = false;
+  final Set<int> _activeMonthDays = {DateTime.now().day};
+  final Set<int> _reminderMonthDays = {for (var day = 1; day <= 31; day++) day};
   Set<String> _tagIds = {};
+
+  bool get _isMonthlyDaily =>
+      widget.taskType == TaskType.daily && _dailyMonthly;
 
   bool get _isEditing => widget.task != null;
 
@@ -83,9 +89,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (schedule is TodoSchedule) {
       _dueDate = schedule.dueDate;
     } else if (schedule is DailySchedule) {
-      _activeWeekdays
-        ..clear()
-        ..addAll(schedule.activeWeekdays);
+      _dailyMonthly = schedule.isMonthly;
+      if (schedule.isMonthly) {
+        _activeMonthDays
+          ..clear()
+          ..addAll(schedule.activeMonthDays!);
+      } else {
+        _activeWeekdays
+          ..clear()
+          ..addAll(schedule.activeWeekdays);
+      }
     } else if (schedule is HabitSchedule) {
       _activeWeekdays
         ..clear()
@@ -107,6 +120,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
         _reminderWeekdays
           ..clear()
           ..addAll(reminder.activeWeekdays!);
+      }
+      if (reminder.activeMonthDays != null) {
+        _reminderMonthDays
+          ..clear()
+          ..addAll(reminder.activeMonthDays!);
       }
     }
 
@@ -209,8 +227,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-    final reminderDays = _reminderWeekdays.intersection(_activeWeekdays);
-    if (widget.taskType != TaskType.todo && _activeWeekdays.isEmpty) {
+    final activeDays = _isMonthlyDaily ? _activeMonthDays : _activeWeekdays;
+    final reminderDays = _isMonthlyDaily
+        ? _reminderMonthDays.intersection(_activeMonthDays)
+        : _reminderWeekdays.intersection(_activeWeekdays);
+    if (widget.taskType != TaskType.todo && activeDays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select at least one active day.')),
       );
@@ -235,7 +256,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     final schedule = switch (widget.taskType) {
       TaskType.todo => TodoSchedule(dueDate: _dueDate),
-      TaskType.daily => DailySchedule(activeWeekdays: Set.of(_activeWeekdays)),
+      TaskType.daily =>
+        _dailyMonthly
+            ? DailySchedule.monthly(activeMonthDays: Set.of(_activeMonthDays))
+            : DailySchedule(activeWeekdays: Set.of(_activeWeekdays)),
       TaskType.habit => HabitSchedule(
         activeWeekdays: Set.of(_activeWeekdays),
         targetCount: int.parse(_targetController.text),
@@ -267,9 +291,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
               ),
               title: _reminderTitleController.text.trim(),
               message: _reminderMessageController.text.trim(),
-              activeWeekdays: widget.taskType == TaskType.todo
+              activeWeekdays:
+                  widget.taskType == TaskType.todo || _isMonthlyDaily
                   ? null
                   : reminderDays,
+              activeMonthDays: _isMonthlyDaily ? reminderDays : null,
             )
           : null,
       isCompleted: editedTask?.isCompleted ?? false,
@@ -354,7 +380,28 @@ class _AddTaskPageState extends State<AddTaskPage> {
             Text('Scheduling', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             if (widget.taskType == TaskType.todo) _buildTodoSchedule(),
-            if (widget.taskType != TaskType.todo) _buildWeekdaySchedule(),
+            if (widget.taskType == TaskType.daily) ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Weekly')),
+                  ButtonSegment(value: true, label: Text('Monthly')),
+                ],
+                selected: {_dailyMonthly},
+                onSelectionChanged: (selection) =>
+                    setState(() => _dailyMonthly = selection.first),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_isMonthlyDaily) ...[
+              const Text('Active days of the month'),
+              const SizedBox(height: 8),
+              _buildMonthDayPicker(selectedDays: _activeMonthDays),
+              const SizedBox(height: 8),
+              const Text(
+                'Days 29-31 are skipped in months that do not have them.',
+              ),
+            ] else if (widget.taskType != TaskType.todo)
+              _buildWeekdaySchedule(),
             if (widget.taskType == TaskType.habit) ...[
               _buildHabitGoal(),
               const SizedBox(height: 16),
@@ -377,10 +424,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
               if (widget.taskType != TaskType.todo) ...[
                 const Text('Reminder days'),
                 const SizedBox(height: 8),
-                _buildWeekdayPicker(
-                  selectedWeekdays: _reminderWeekdays,
-                  allowedWeekdays: _activeWeekdays,
-                ),
+                if (_isMonthlyDaily)
+                  _buildMonthDayPicker(
+                    selectedDays: _reminderMonthDays,
+                    allowedDays: _activeMonthDays,
+                  )
+                else
+                  _buildWeekdayPicker(
+                    selectedWeekdays: _reminderWeekdays,
+                    allowedWeekdays: _activeWeekdays,
+                  ),
                 const SizedBox(height: 8),
               ],
               const Text('Time'),
@@ -475,6 +528,73 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildWeekdaySchedule() {
     return _buildWeekdayPicker(selectedWeekdays: _activeWeekdays);
+  }
+
+  Widget _buildMonthDayPicker({
+    required Set<int> selectedDays,
+    Set<int>? allowedDays,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      children: List.generate(
+        5,
+        (row) => Padding(
+          padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
+          child: Row(
+            children: List.generate(7, (column) {
+              final day = row * 7 + column + 1;
+              if (day > 31) return const Expanded(child: SizedBox());
+              final enabled = allowedDays?.contains(day) ?? true;
+              final selected = enabled && selectedDays.contains(day);
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(left: column == 0 ? 0 : 4),
+                  child: Semantics(
+                    label: 'Day $day',
+                    selected: selected,
+                    enabled: enabled,
+                    button: true,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: !enabled
+                          ? null
+                          : () => setState(() {
+                              if (!selectedDays.add(day)) {
+                                selectedDays.remove(day);
+                              }
+                            }),
+                      child: Container(
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? colors.primaryContainer
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: enabled
+                                ? colors.outline
+                                : colors.outline.withValues(alpha: 0.35),
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          '$day',
+                          style: TextStyle(
+                            color: enabled
+                                ? null
+                                : colors.onSurface.withValues(alpha: 0.35),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildWeekdayPicker({

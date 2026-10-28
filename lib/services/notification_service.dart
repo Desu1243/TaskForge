@@ -227,6 +227,10 @@ class NotificationService {
     for (var slot = 0; slot <= 7; slot++) {
       await _plugin.cancel(id: _notificationId(task.id, slot));
     }
+    // Cancel both schedule types so switching monthly/weekly leaves no old alarms.
+    for (var day = 1; day <= 31; day++) {
+      await _plugin.cancel(id: _monthlyNotificationId(task.id, day));
+    }
   }
 
   Future<void> cancelAll() async {
@@ -257,6 +261,29 @@ class NotificationService {
         androidScheduleMode: _scheduleMode,
         payload: task.id,
       );
+      return;
+    }
+
+    final schedule = task.schedule;
+    if (schedule is DailySchedule && schedule.isMonthly) {
+      final days = (reminder.activeMonthDays ?? schedule.activeMonthDays!)
+          .intersection(schedule.activeMonthDays!);
+      for (final day in days) {
+        await _plugin.zonedSchedule(
+          id: _monthlyNotificationId(task.id, day),
+          title: title,
+          body: body,
+          scheduledDate: nextMonthlyReminderDate(
+            day,
+            reminder.time,
+            now: tz.TZDateTime.now(tz.local),
+          ),
+          notificationDetails: _notificationDetails,
+          androidScheduleMode: _scheduleMode,
+          matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+          payload: task.id,
+        );
+      }
       return;
     }
 
@@ -335,6 +362,32 @@ class NotificationService {
     }
     return result;
   }
+
+  @visibleForTesting
+  static tz.TZDateTime nextMonthlyReminderDate(
+    int day,
+    ReminderTime time, {
+    required tz.TZDateTime now,
+  }) {
+    RangeError.checkValueInInterval(day, 1, 31, 'day');
+    for (var offset = 0; ; offset++) {
+      final month = DateTime(now.year, now.month + offset);
+      final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+      if (day > daysInMonth) continue;
+      final candidate = tz.TZDateTime(
+        now.location,
+        month.year,
+        month.month,
+        day,
+        time.hour,
+        time.minute,
+      );
+      if (candidate.isAfter(now)) return candidate;
+    }
+  }
+
+  int _monthlyNotificationId(String taskId, int day) =>
+      _notificationId('$taskId:monthly:$day', 0);
 
   Set<int> _scheduledWeekdays(Task task) => switch (task.schedule) {
     DailySchedule(:final activeWeekdays) => activeWeekdays,
