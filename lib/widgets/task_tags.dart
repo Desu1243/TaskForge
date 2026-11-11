@@ -163,9 +163,13 @@ class _TagEditorState extends State<_TagEditor> {
                 const SizedBox(height: 12),
                 const Text('Color'),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                GridView.count(
+                  crossAxisCount: 6,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
                   children: [
                     for (final color in _palette)
                       Semantics(
