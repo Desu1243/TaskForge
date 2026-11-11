@@ -80,6 +80,46 @@ void main() {
   );
 
   test(
+    'Until completed survives disk storage and old dated reminders remain one-off',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'taskforge_until_',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final storage = TaskStorage.forDirectory(directory);
+      final task = Task(
+        id: 'repeat',
+        type: TaskType.todo,
+        title: 'Repeat',
+        notes: '',
+        schedule: const TodoSchedule(),
+        reminders: [
+          TaskReminder(
+            id: 'daily',
+            time: const ReminderTime(hour: 9, minute: 0),
+            date: DateTime(2030, 1, 1),
+            untilCompleted: true,
+          ),
+          TaskReminder(
+            id: 'dated',
+            time: const ReminderTime(hour: 18, minute: 0),
+            date: DateTime(2030, 1, 2),
+          ),
+        ],
+      );
+      await storage.saveTask(task);
+      final restored = (await storage.loadAll())[TaskType.todo]!.single;
+      expect(restored.reminders.first.untilCompleted, isTrue);
+      expect(restored.reminders.first.date, isNull);
+      final json = restored.toJson();
+      ((json['reminders'] as List).last as Map).remove('untilCompleted');
+      final old = Task.fromJson(json).reminders.last;
+      expect(old.untilCompleted, isFalse);
+      expect(old.date, DateTime(2030, 1, 2));
+    },
+  );
+
+  test(
     'legacy reminders migrate with their time, To-do date and task data',
     () {
       final task = daily()..setCompletedOn(DateTime.now(), completed: true);
@@ -212,6 +252,92 @@ void main() {
       expect(saved!.reminders.single.time.hour, 9);
       expect(saved!.reminders.single.time.minute, 15);
       expect(saved!.reminders.single.date, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'To-do has no Due date and reminder can switch to Until completed',
+    (tester) async {
+      final settings = await AppSettings.load();
+      Task? saved;
+      final original = Task(
+        id: 'todo',
+        type: TaskType.todo,
+        title: 'Plan',
+        notes: '',
+        schedule: const TodoSchedule(),
+        reminders: [
+          TaskReminder(
+            id: 'first',
+            time: const ReminderTime(hour: 9, minute: 0),
+            date: DateTime(2030, 3, 1),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        app(
+          Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  saved = await Navigator.push<Task>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddTaskPage(
+                        taskType: TaskType.todo,
+                        settings: settings,
+                        task: saved ?? original,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Due date'), findsNothing);
+      expect(find.text('Scheduling'), findsNothing);
+      await scrollTo(tester, find.byKey(const ValueKey('reminder-first')));
+      await tester.tap(find.byKey(const ValueKey('reminder-first')));
+      await tester.pumpAndSettle();
+      await scrollTo(tester, find.byType(CheckboxListTile));
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
+      expect(find.text('Reminder date'), findsOneWidget);
+      final dateTile = find.widgetWithText(ListTile, 'Reminder date');
+      expect(tester.widget<ListTile>(dateTile).enabled, isFalse);
+      expect(tester.widget<ListTile>(dateTile).onTap, isNull);
+      await scrollTo(tester, find.text('Reminder date'));
+      await tester.tap(find.text('Reminder date'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DatePickerDialog), findsNothing);
+      await scrollTo(tester, find.text('Save reminder'));
+      await tester.tap(find.text('Save reminder'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Save'));
+      await tester.pumpAndSettle();
+      expect(saved!.reminders.single.untilCompleted, isTrue);
+      expect(saved!.reminders.single.date, isNull);
+      expect(saved!.reminders.single.id, 'first');
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await scrollTo(tester, find.byKey(const ValueKey('reminder-first')));
+      await tester.tap(find.byKey(const ValueKey('reminder-first')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isTrue,
+      );
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
+      expect(find.text('Reminder date'), findsOneWidget);
+      expect(tester.widget<ListTile>(dateTile).enabled, isTrue);
+      expect(tester.widget<ListTile>(dateTile).onTap, isNotNull);
       expect(tester.takeException(), isNull);
     },
   );

@@ -27,6 +27,32 @@ Task monthly({Set<int> days = const {15, 31}, DateTime? createdAt}) => Task(
 void main() {
   setUpAll(tz_data.initializeTimeZones);
 
+  test('daily reminder chooses today or tomorrow in local time across DST', () {
+    final location = tz.getLocation('Europe/Warsaw');
+    const time = ReminderTime(hour: 9, minute: 0);
+    expect(
+      NotificationService.nextDailyReminderDate(
+        time,
+        now: tz.TZDateTime(location, 2026, 3, 28, 8),
+      ),
+      tz.TZDateTime(location, 2026, 3, 28, 9),
+    );
+    expect(
+      NotificationService.nextDailyReminderDate(
+        time,
+        now: tz.TZDateTime(location, 2026, 3, 28, 10),
+      ),
+      tz.TZDateTime(location, 2026, 3, 29, 9),
+    );
+    expect(
+      NotificationService.nextDailyReminderDate(
+        time,
+        now: tz.TZDateTime(location, 2026, 12, 31, 10),
+      ),
+      tz.TZDateTime(location, 2027, 1, 1, 9),
+    );
+  });
+
   test('monthly activation skips missing days and includes leap days', () {
     final task = monthly(days: {29, 31});
     expect(task.isScheduledOn(DateTime(2026, 1, 31)), isTrue);

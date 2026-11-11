@@ -10,11 +10,17 @@ class ReminderTime {
 }
 
 class TaskReminder {
-  const TaskReminder({required this.id, required this.time, this.date});
+  const TaskReminder({
+    required this.id,
+    required this.time,
+    DateTime? date,
+    this.untilCompleted = false,
+  }) : date = untilCompleted ? null : date;
 
   final String id;
   final ReminderTime time;
   final DateTime? date;
+  final bool untilCompleted;
 }
 
 sealed class TaskSchedule {
@@ -378,6 +384,7 @@ class Task {
     'hour': reminder.time.hour,
     'minute': reminder.time.minute,
     'date': reminder.date?.toIso8601String(),
+    'untilCompleted': reminder.untilCompleted,
   };
 
   static TaskReminder _reminderFromJson(Map<String, dynamic> json) =>
@@ -388,6 +395,7 @@ class Task {
           minute: (json['minute'] as num).toInt(),
         ),
         date: _optionalDate(json['date']),
+        untilCompleted: json['untilCompleted'] as bool? ?? false,
       );
 
   static List<TaskReminder> _migrateLegacyReminder(

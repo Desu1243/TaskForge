@@ -300,6 +300,60 @@ void main() {
     }
 
     test(
+      'Until completed repeats daily, stops on completion and can switch to a dated reminder',
+      () async {
+        final service = await NotificationService.open();
+        final task = Task(
+          id: 'repeat',
+          type: TaskType.todo,
+          title: 'Do this',
+          notes: '',
+          schedule: const TodoSchedule(),
+          reminders: const [
+            TaskReminder(
+              id: 'daily',
+              time: ReminderTime(hour: 9, minute: 0),
+              untilCompleted: true,
+            ),
+          ],
+        );
+        await service.scheduleTask(task);
+        expect(pending, hasLength(1));
+        final alarm = pending.values.single;
+        expect(alarm['matchDateTimeComponents'], DateTimeComponents.time.index);
+        expect(alarm['payload'], 'repeat');
+        task.setCompletedOn(DateTime.now(), completed: true);
+        await service.scheduleTask(task);
+        expect(pending, isEmpty);
+        await service.syncAll([task]);
+        expect(pending, isEmpty);
+        task.setCompletedOn(DateTime.now(), completed: false);
+        await service.scheduleTask(task);
+        expect(
+          pending.values.single['matchDateTimeComponents'],
+          DateTimeComponents.time.index,
+        );
+        final dated = Task(
+          id: task.id,
+          type: task.type,
+          title: task.title,
+          notes: '',
+          schedule: const TodoSchedule(),
+          reminders: [
+            TaskReminder(
+              id: 'daily',
+              time: const ReminderTime(hour: 9, minute: 0),
+              date: DateTime.now().add(const Duration(days: 2)),
+            ),
+          ],
+        );
+        await service.scheduleTask(dated);
+        expect(pending, hasLength(1));
+        expect(pending.values.single['matchDateTimeComponents'], isNull);
+      },
+    );
+
+    test(
       'completed To-do cancels all reminders and expired dates never roll over',
       () async {
         final service = await NotificationService.open();

@@ -252,7 +252,12 @@ class NotificationService {
     final reminderKey = '${task.id}:reminder:${reminder.id}';
 
     if (task.type == TaskType.todo) {
-      final scheduledDate = _todoNotificationDate(reminder);
+      final scheduledDate = reminder.untilCompleted
+          ? nextDailyReminderDate(
+              reminder.time,
+              now: tz.TZDateTime.now(tz.local),
+            )
+          : _todoNotificationDate(reminder);
       if (scheduledDate == null) return;
       await _plugin.zonedSchedule(
         id: _notificationId(reminderKey, 0),
@@ -261,6 +266,9 @@ class NotificationService {
         scheduledDate: scheduledDate,
         notificationDetails: _notificationDetails,
         androidScheduleMode: _scheduleMode,
+        matchDateTimeComponents: reminder.untilCompleted
+            ? DateTimeComponents.time
+            : null,
         payload: task.id,
       );
       return;
@@ -301,6 +309,31 @@ class NotificationService {
         payload: task.id,
       );
     }
+  }
+
+  @visibleForTesting
+  static tz.TZDateTime nextDailyReminderDate(
+    ReminderTime time, {
+    required tz.TZDateTime now,
+  }) {
+    final today = tz.TZDateTime(
+      now.location,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    return today.isAfter(now)
+        ? today
+        : tz.TZDateTime(
+            now.location,
+            now.year,
+            now.month,
+            now.day + 1,
+            time.hour,
+            time.minute,
+          );
   }
 
   tz.TZDateTime? _todoNotificationDate(TaskReminder reminder) {

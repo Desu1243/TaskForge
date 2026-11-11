@@ -43,8 +43,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
   final _reminderEditorKey = GlobalKey();
   String? _editingReminderId;
   DateTime _reminderDate = Task.dateOnly(DateTime.now());
+  bool _untilCompleted = false;
 
-  DateTime? _dueDate;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   HabitPeriod _habitPeriod = HabitPeriod.week;
   bool _positiveCounterEnabled = true;
@@ -77,9 +77,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _tagIds = Set.of(task.tagIds);
 
     final schedule = task.schedule;
-    if (schedule is TodoSchedule) {
-      _dueDate = schedule.dueDate;
-    } else if (schedule is DailySchedule) {
+    if (schedule is DailySchedule) {
       _dailyMonthly = schedule.isMonthly;
       if (schedule.isMonthly) {
         _activeMonthDays
@@ -122,19 +120,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _positiveCountController.dispose();
     _negativeCountController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickDueDate() async {
-    final date = await showDatePicker(
-      context: context,
-      locale: widget.settings.firstDayOfWeek == FirstDayOfWeek.monday
-          ? const Locale('en', 'GB')
-          : const Locale('en', 'US'),
-      initialDate: _dueDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 3650)),
-    );
-    if (date != null && mounted) setState(() => _dueDate = date);
   }
 
   Future<void> _pickReminderTime() async {
@@ -214,7 +199,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     }
 
     final schedule = switch (widget.taskType) {
-      TaskType.todo => TodoSchedule(dueDate: _dueDate),
+      TaskType.todo => const TodoSchedule(),
       TaskType.daily =>
         _dailyMonthly
             ? DailySchedule.monthly(activeMonthDays: Set.of(_activeMonthDays))
@@ -321,10 +306,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
               selected: _tagIds,
               onChanged: (selected) => setState(() => _tagIds = selected),
             ),
-            const SizedBox(height: 24),
-            Text('Scheduling', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            if (widget.taskType == TaskType.todo) _buildTodoSchedule(),
+            if (widget.taskType != TaskType.todo) ...[
+              const SizedBox(height: 24),
+              Text('Scheduling', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+            ],
             if (widget.taskType == TaskType.daily) ...[
               SegmentedButton<bool>(
                 segments: const [
@@ -361,26 +347,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-  Widget _buildTodoSchedule() {
-    final dateText = _dueDate == null
-        ? 'No due date'
-        : MaterialLocalizations.of(context).formatMediumDate(_dueDate!);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.event_outlined),
-      title: const Text('Due date'),
-      subtitle: Text(dateText),
-      trailing: _dueDate == null
-          ? null
-          : IconButton(
-              tooltip: 'Remove due date',
-              onPressed: () => setState(() => _dueDate = null),
-              icon: const Icon(Icons.clear),
-            ),
-      onTap: _pickDueDate,
-    );
-  }
-
   Future<void> _pickReminderDate() async {
     final date = await showDatePicker(
       context: context,
@@ -402,6 +368,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         minute: reminder.time.minute,
       );
       _reminderDate = reminder.date ?? Task.dateOnly(DateTime.now());
+      _untilCompleted = reminder.untilCompleted;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final editorContext = _reminderEditorKey.currentContext;
@@ -419,12 +386,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _editingReminderId = null;
     _reminderTime = widget.settings.defaultReminderTimeAt(DateTime.now());
     _reminderDate = Task.dateOnly(DateTime.now());
+    _untilCompleted = false;
   }
 
   void _addOrUpdateReminder() {
     final isTodo = widget.taskType == TaskType.todo;
-    final date = isTodo ? _reminderDate : null;
-    if (isTodo) {
+    final untilCompleted = isTodo && _untilCompleted;
+    final date = isTodo && !untilCompleted ? _reminderDate : null;
+    if (isTodo && !untilCompleted) {
       final scheduled = DateTime(
         date!.year,
         date.month,
@@ -444,6 +413,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (_reminders.any(
       (reminder) =>
           reminder.id != _editingReminderId &&
+          reminder.untilCompleted == untilCompleted &&
           reminder.time.hour == _reminderTime.hour &&
           reminder.time.minute == _reminderTime.minute &&
           (reminder.date == null
@@ -466,6 +436,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         minute: _reminderTime.minute,
       ),
       date: date,
+      untilCompleted: untilCompleted,
     );
     setState(() {
       final index = _reminders.indexWhere((item) => item.id == reminder.id);
@@ -524,7 +495,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   minute: reminder.time.minute,
                 ).format(context),
               ),
-              subtitle: reminder.date == null
+              subtitle: reminder.untilCompleted
+                  ? const Text('Until completed')
+                  : reminder.date == null
                   ? null
                   : Text(
                       MaterialLocalizations.of(
@@ -547,16 +520,32 @@ class _AddTaskPageState extends State<AddTaskPage> {
             const SizedBox(height: 8),
             _buildReminderTimeControls(),
             if (widget.taskType == TaskType.todo)
-              ListTile(
+              CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_outlined),
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Until completed'),
+                subtitle: const Text(
+                  'Reminds every day until the task is completed',
+                ),
+                value: _untilCompleted,
+                onChanged: (value) =>
+                    setState(() => _untilCompleted = value ?? false),
+              ),
+            if (widget.taskType == TaskType.todo)
+              ListTile(
+                enabled: !_untilCompleted,
+                contentPadding: EdgeInsets.zero,
+                leading: const SizedBox(
+                  width: 40,
+                  child: Center(child: Icon(Icons.event_outlined)),
+                ),
                 title: const Text('Reminder date'),
                 trailing: Text(
                   MaterialLocalizations.of(
                     context,
                   ).formatMediumDate(_reminderDate),
                 ),
-                onTap: _pickReminderDate,
+                onTap: _untilCompleted ? null : _pickReminderDate,
               ),
             const SizedBox(height: 12),
             Row(

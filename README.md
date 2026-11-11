@@ -8,7 +8,7 @@ The project currently targets Android.
 
 ### Three task types
 
-- **To-dos** are one-time tasks with an optional due date and a circular completion control.
+- **To-dos** are one-time tasks with a circular completion control and optional dated or daily-until-completed reminders.
 - **Dailies** repeat on selected weekdays. Their state distinguishes between active, completed, and non-scheduled days.
 - **Habits** support positive and negative counters, selected active weekdays, and daily, weekly, or monthly goals.
 
@@ -45,7 +45,7 @@ Tasks with reminders are scheduled using Android local notifications.
 
 - Each task can have multiple reminders, added with the existing time picker and quick time adjustments.
 - Habit and Daily reminders repeat on the task's active weekdays (or selected month days for monthly Dailies).
-- Each To-do reminder has its own date and time, independent of the task's due date. Past reminders do not repeat, and completing a To-do cancels all its future reminders.
+- Each To-do reminder has its own date and time, or can use **Until completed** to repeat daily at the chosen time without a date. Completing a To-do cancels all its future reminders. Unchecking completion restores its daily reminders.
 - Notification titles use the task title; body text uses the task notes, or is omitted when notes are empty.
 - Tap a reminder in the task form to edit or delete it, then save the task to persist the list.
 - Existing single reminders are automatically migrated to the new list format.
