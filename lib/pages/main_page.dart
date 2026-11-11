@@ -31,7 +31,28 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
+  Timer? _dateBoundaryTimer;
+
+  void _scheduleDateRefresh() {
+    _dateBoundaryTimer?.cancel();
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    _dateBoundaryTimer = Timer(midnight.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleDateRefresh();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {});
+      _scheduleDateRefresh();
+    }
+  }
+
   final List<String> pageTitles = ["Habits", "Dailies", "To-do's", "Settings"];
   late final Map<TaskType, List<Task>> tasks;
   late int currentPage;
@@ -87,6 +108,8 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleDateRefresh();
     tasks = {
       for (final type in TaskType.values)
         type: List.of(widget.initialTasks[type] ?? const []),
@@ -271,6 +294,10 @@ class _MainPageState extends State<MainPage> {
           taskType: task.type,
           settings: widget.settings,
           task: task,
+          onHistoryChanged: (updated) async {
+            await widget.storage.saveTask(updated);
+            if (mounted) setState(() {});
+          },
           onDelete: () {
             setState(() => tasks[task.type]!.remove(task));
             unawaited(_deleteTask(task));
@@ -455,6 +482,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _dateBoundaryTimer?.cancel();
     widget.notificationService.notificationTaskId.removeListener(
       _notificationTapped,
     );

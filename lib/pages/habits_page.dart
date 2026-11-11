@@ -60,39 +60,42 @@ class _HabitTile extends StatelessWidget {
   final ValueChanged<Task> onChanged;
   final ValueChanged<Task> onEdit;
 
-  Color _statusColor(HabitCounters counters) {
-    final positive = counters.positiveEnabled ? task.positiveCount : 0;
-    final negative = counters.negativeEnabled ? task.negativeCount : 0;
+  Color _statusColor(HabitCounters counters, HabitPeriodCounts counts) {
+    final positive = counters.positiveEnabled ? counts.positive : 0;
+    final negative = counters.negativeEnabled ? counts.negative : 0;
     if (positive > negative) return DefaultTheme.green;
     if (positive < negative) return DefaultTheme.red;
     return DefaultTheme.yellow;
   }
 
-  Color _darkStatusColor(HabitCounters counters) {
-    final positive = counters.positiveEnabled ? task.positiveCount : 0;
-    final negative = counters.negativeEnabled ? task.negativeCount : 0;
+  Color _darkStatusColor(HabitCounters counters, HabitPeriodCounts counts) {
+    final positive = counters.positiveEnabled ? counts.positive : 0;
+    final negative = counters.negativeEnabled ? counts.negative : 0;
     if (positive > negative) return DefaultTheme.darkGreen;
     if (positive < negative) return DefaultTheme.darkRed;
     return DefaultTheme.darkYellow;
   }
 
-  String _counterLabel(HabitCounters counters) {
+  String _counterLabel(HabitCounters counters, HabitPeriodCounts counts) {
     if (counters.positiveEnabled && counters.negativeEnabled) {
-      return '+${task.positiveCount} | -${task.negativeCount}';
+      return '+${counts.positive} | -${counts.negative}';
     }
-    if (counters.positiveEnabled) return '+${task.positiveCount}';
-    return '-${task.negativeCount}';
+    if (counters.positiveEnabled) return '+${counts.positive}';
+    return '-${counts.negative}';
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final counts = task.habitCountsForPeriod(
+      DateTime.now(),
+      firstWeekday: settings.firstDayOfWeek == FirstDayOfWeek.monday
+          ? DateTime.monday
+          : DateTime.sunday,
+    );
     final counters =
         task.habitCounters ??
         const HabitCounters(positiveEnabled: true, negativeEnabled: true);
-    final hasCounterValue =
-        (counters.positiveEnabled && task.positiveCount != 0) ||
-        (counters.negativeEnabled && task.negativeCount != 0);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -103,8 +106,8 @@ class _HabitTile extends StatelessWidget {
           children: [
             _HabitCounterButton(
               enabled: counters.positiveEnabled,
-              color: _statusColor(counters),
-              iconColor: _darkStatusColor(counters),
+              color: _statusColor(counters, counts),
+              iconColor: _darkStatusColor(counters, counts),
               icon: Icons.add,
               tooltip: 'Add positive point',
               onTap: () {
@@ -147,12 +150,12 @@ class _HabitTile extends StatelessWidget {
                               ),
                             ),
                           ],
-                          if (hasCounterValue) ...[
+                          if (counts.positive != 0 || counts.negative != 0) ...[
                             const SizedBox(height: 3),
                             Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                _counterLabel(counters),
+                                _counterLabel(counters, counts),
                                 style: TextStyle(
                                   color: colors.onSurfaceVariant.withValues(
                                     alpha: 0.65,
@@ -171,8 +174,8 @@ class _HabitTile extends StatelessWidget {
             ),
             _HabitCounterButton(
               enabled: counters.negativeEnabled,
-              color: _statusColor(counters),
-              iconColor: _darkStatusColor(counters),
+              color: _statusColor(counters, counts),
+              iconColor: _darkStatusColor(counters, counts),
               icon: Icons.remove,
               tooltip: 'Add negative point',
               onTap: () {

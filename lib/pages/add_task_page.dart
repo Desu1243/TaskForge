@@ -10,6 +10,7 @@ class AddTaskPage extends StatefulWidget {
     required this.settings,
     this.task,
     this.onDelete,
+    this.onHistoryChanged,
     super.key,
   });
 
@@ -17,6 +18,7 @@ class AddTaskPage extends StatefulWidget {
   final AppSettings settings;
   final Task? task;
   final VoidCallback? onDelete;
+  final Future<void> Function(Task)? onHistoryChanged;
 
   @override
   State<AddTaskPage> createState() => _AddTaskPageState();
@@ -146,13 +148,29 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Future<void> _openHistory() async {
     final task = widget.task;
     if (task == null) return;
+    final today = DateTime.now();
+    final before = task.historyEntryOn(today);
+    final previousCounts = (
+      before?.positiveCount ?? 0,
+      before?.negativeCount ?? 0,
+    );
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            TaskHistoryPage(task: task, settings: widget.settings),
+        builder: (context) => TaskHistoryPage(
+          task: task,
+          settings: widget.settings,
+          onSave: widget.onHistoryChanged,
+        ),
       ),
     );
+    if (!mounted) return;
+    final after = task.historyEntryOn(today);
+    if (previousCounts !=
+        (after?.positiveCount ?? 0, after?.negativeCount ?? 0)) {
+      _positiveCountController.text = '${after?.positiveCount ?? 0}';
+      _negativeCountController.text = '${after?.negativeCount ?? 0}';
+    }
   }
 
   Future<void> _delete() async {

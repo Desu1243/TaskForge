@@ -2,6 +2,8 @@ enum TaskType { habit, daily, todo }
 
 enum HabitPeriod { day, week, month }
 
+typedef HabitPeriodCounts = ({int positive, int negative});
+
 class ReminderTime {
   const ReminderTime({required this.hour, required this.minute});
 
@@ -163,6 +165,39 @@ class Task {
       entry.negativeCount++;
       negativeCount++;
     }
+  }
+
+  HabitPeriodCounts habitCountsForPeriod(
+    DateTime date, {
+    int firstWeekday = DateTime.monday,
+  }) {
+    final habitSchedule = schedule;
+    if (habitSchedule is! HabitSchedule) return (positive: 0, negative: 0);
+    final today = dateOnly(date);
+    final start = switch (habitSchedule.period) {
+      HabitPeriod.day => today,
+      HabitPeriod.week => DateTime(
+        today.year,
+        today.month,
+        today.day - (today.weekday - firstWeekday) % DateTime.daysPerWeek,
+      ),
+      HabitPeriod.month => DateTime(today.year, today.month),
+    };
+    final end = switch (habitSchedule.period) {
+      HabitPeriod.day => DateTime(start.year, start.month, start.day + 1),
+      HabitPeriod.week => DateTime(start.year, start.month, start.day + 7),
+      HabitPeriod.month => DateTime(start.year, start.month + 1),
+    };
+    var positive = 0;
+    var negative = 0;
+    for (final entry in history) {
+      final day = dateOnly(entry.date);
+      if (!day.isBefore(start) && day.isBefore(end)) {
+        positive += entry.positiveCount;
+        negative += entry.negativeCount;
+      }
+    }
+    return (positive: positive, negative: negative);
   }
 
   void setHabitPointsForDate(

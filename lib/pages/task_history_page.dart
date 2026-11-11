@@ -4,16 +4,145 @@ import 'package:flutter/material.dart';
 import 'package:taskforge/models/app_settings.dart';
 import 'package:taskforge/models/task.dart';
 import 'package:taskforge/themes/default_theme.dart';
+import 'package:taskforge/services/task_storage.dart';
 
-class TaskHistoryPage extends StatelessWidget {
+class TaskHistoryPage extends StatefulWidget {
   const TaskHistoryPage({
     required this.task,
     required this.settings,
+    this.onSave,
     super.key,
   });
 
   final Task task;
   final AppSettings settings;
+  final Future<void> Function(Task)? onSave;
+
+  @override
+  State<TaskHistoryPage> createState() => _TaskHistoryPageState();
+}
+
+class _TaskHistoryPageState extends State<TaskHistoryPage> {
+  Task get task => widget.task;
+  AppSettings get settings => widget.settings;
+  bool _saving = false;
+
+  Future<void> _editDay(_HistoryDay day) async {
+    if (_saving) return;
+    final formKey = GlobalKey<FormState>();
+    var positive = day.positiveCount;
+    var negative = day.negativeCount;
+    var completed = day.dailyCompleted;
+    final result =
+        await showDialog<({int positive, int negative, bool completed})>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, update) => AlertDialog(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
+              title: Text(
+                MaterialLocalizations.of(context).formatMediumDate(day.date),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (task.type == TaskType.daily)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(completed ? 'Done' : 'Skipped'),
+                        value: completed,
+                        onChanged: (value) => update(() => completed = value),
+                      )
+                    else ...[
+                      TextFormField(
+                        initialValue: '$positive',
+                        keyboardType: TextInputType.number,
+                        enabled: task.habitCounters?.positiveEnabled ?? true,
+                        decoration: const InputDecoration(
+                          labelText: 'Positive',
+                        ),
+                        validator: _validateCount,
+                        onChanged: (value) =>
+                            positive = int.tryParse(value) ?? -1,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        initialValue: '$negative',
+                        keyboardType: TextInputType.number,
+                        enabled: task.habitCounters?.negativeEnabled ?? true,
+                        decoration: const InputDecoration(
+                          labelText: 'Negative',
+                        ),
+                        validator: _validateCount,
+                        onChanged: (value) =>
+                            negative = int.tryParse(value) ?? -1,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      Navigator.pop(context, (
+                        positive: positive,
+                        negative: negative,
+                        completed: completed,
+                      ));
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ),
+        );
+    if (result == null || !mounted) return;
+    final updated = Task.fromJson(task.toJson());
+    if (task.type == TaskType.daily) {
+      updated.setCompletedOn(day.date, completed: result.completed);
+    } else {
+      updated.setHabitPointsForDate(
+        day.date,
+        positive: result.positive,
+        negative: result.negative,
+      );
+    }
+    setState(() => _saving = true);
+    try {
+      if (widget.onSave != null) {
+        await widget.onSave!(updated);
+      } else {
+        await (await TaskStorage.open()).saveTask(updated);
+      }
+      task.history
+        ..clear()
+        ..addAll(updated.history);
+      task.positiveCount = updated.positiveCount;
+      task.negativeCount = updated.negativeCount;
+      task.lastCompletedDate = updated.lastCompletedDate;
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('History changes could not be saved.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  String? _validateCount(String? value) {
+    final count = int.tryParse(value ?? '');
+    return count == null || count < 0 ? 'Enter 0 or more.' : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +201,11 @@ class TaskHistoryPage extends StatelessWidget {
                 ...days.reversed.map(
                   (day) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _HistoryListTile(task: task, day: day),
+                    child: _HistoryListTile(
+                      task: task,
+                      day: day,
+                      onLongPress: _saving ? null : () => _editDay(day),
+                    ),
                   ),
                 ),
               ],
@@ -358,7 +491,12 @@ class _HistoryChartPainter extends CustomPainter {
 }
 
 class _HistoryListTile extends StatelessWidget {
-  const _HistoryListTile({required this.task, required this.day});
+  const _HistoryListTile({
+    required this.task,
+    required this.day,
+    this.onLongPress,
+  });
+  final VoidCallback? onLongPress;
 
   final Task task;
   final _HistoryDay day;
@@ -367,6 +505,7 @@ class _HistoryListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return ListTile(
+      onLongPress: onLongPress,
       tileColor: colors.surfaceContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       leading: const Icon(Icons.calendar_today_outlined),
