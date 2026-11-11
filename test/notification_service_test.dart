@@ -36,6 +36,7 @@ void main() {
     var fromNotification = false;
     var failLaunchDetails = false;
     final calls = <MethodCall>[];
+    final pending = <int, Map<String, dynamic>>{};
 
     setUp(() {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -43,6 +44,7 @@ void main() {
       fromNotification = false;
       failLaunchDetails = false;
       calls.clear();
+      pending.clear();
       messenger.setMockMethodCallHandler(
         timezoneChannel,
         (_) async => 'Europe/Warsaw',
@@ -51,6 +53,18 @@ void main() {
       messenger.setMockMethodCallHandler(pluginChannel, (call) async {
         calls.add(call);
         switch (call.method) {
+          case 'pendingNotificationRequests':
+            return pending.values.toList();
+          case 'zonedSchedule':
+            final args = Map<String, dynamic>.from(call.arguments as Map);
+            pending[args['id'] as int] = args;
+            return null;
+          case 'cancel':
+            pending.remove((call.arguments as Map)['id']);
+            return null;
+          case 'cancelAll':
+            pending.clear();
+            return null;
           case 'initialize':
           case 'canScheduleExactNotifications':
             return true;
@@ -127,19 +141,23 @@ void main() {
           title: 'Clean',
           notes: '',
           schedule: const DailySchedule.monthly(activeMonthDays: {1, 15, 31}),
-          reminder: const TaskReminder(
-            time: ReminderTime(hour: 9, minute: 15),
-            title: '',
-            message: '',
-            activeMonthDays: {1, 31},
-          ),
+          reminders: const [
+            TaskReminder(
+              id: 'morning',
+              time: ReminderTime(hour: 9, minute: 15),
+            ),
+            TaskReminder(
+              id: 'evening',
+              time: ReminderTime(hour: 18, minute: 0),
+            ),
+          ],
         );
         await service.scheduleTask(monthlyTask);
         final alarms = calls
             .where((call) => call.method == 'zonedSchedule')
             .map((call) => call.arguments as Map)
             .toList();
-        expect(alarms, hasLength(2));
+        expect(alarms, hasLength(6));
         expect(
           alarms
               .map(
@@ -147,7 +165,7 @@ void main() {
                     DateTime.parse(alarm['scheduledDateTime'] as String).day,
               )
               .toSet(),
-          {1, 31},
+          {1, 15, 31},
         );
         for (final alarm in alarms) {
           expect(
@@ -159,7 +177,7 @@ void main() {
           expect(alarm['body'], isNull);
         }
         final monthlyIds = alarms.map((alarm) => alarm['id']).toSet();
-        expect(monthlyIds, hasLength(2));
+        expect(monthlyIds, hasLength(6));
         calls.clear();
         await service.scheduleTask(
           Task(
@@ -168,12 +186,12 @@ void main() {
             title: 'Clean',
             notes: '',
             schedule: const DailySchedule(activeWeekdays: {1}),
-            reminder: const TaskReminder(
-              time: ReminderTime(hour: 9, minute: 15),
-              title: '',
-              message: '',
-              activeWeekdays: {1},
-            ),
+            reminders: const [
+              TaskReminder(
+                id: 'morning',
+                time: ReminderTime(hour: 9, minute: 15),
+              ),
+            ],
           ),
         );
         final cancelled = calls
@@ -190,6 +208,132 @@ void main() {
           weeklyAlarm['matchDateTimeComponents'],
           DateTimeComponents.dayOfWeekAndTime.index,
         );
+      },
+    );
+    for (final type in TaskType.values) {
+      test(
+        '$type reminders have independent alarms and removed entries are cancelled',
+        () async {
+          final service = await NotificationService.open();
+          final tomorrow = DateTime.now().add(const Duration(days: 1));
+          final nextDay = DateTime.now().add(const Duration(days: 2));
+          Task task(List<TaskReminder> reminders) => Task(
+            id: 'multiple',
+            type: type,
+            title: 'Exercise',
+            notes: 'Twenty minutes',
+            schedule: switch (type) {
+              TaskType.todo => const TodoSchedule(),
+              TaskType.daily => const DailySchedule(activeWeekdays: {1, 3}),
+              TaskType.habit => const HabitSchedule(
+                activeWeekdays: {1, 3},
+                targetCount: 2,
+                period: HabitPeriod.week,
+              ),
+            },
+            reminders: reminders,
+          );
+          final reminders = [
+            TaskReminder(
+              id: 'morning',
+              time: const ReminderTime(hour: 9, minute: 0),
+              date: type == TaskType.todo ? tomorrow : null,
+            ),
+            TaskReminder(
+              id: 'evening',
+              time: const ReminderTime(hour: 18, minute: 0),
+              date: type == TaskType.todo ? nextDay : null,
+            ),
+          ];
+          final otherTask = Task(
+            id: 'other',
+            type: TaskType.todo,
+            title: 'Other',
+            notes: '',
+            schedule: const TodoSchedule(),
+            reminders: [
+              TaskReminder(
+                id: 'other',
+                time: const ReminderTime(hour: 12, minute: 0),
+                date: tomorrow,
+              ),
+            ],
+          );
+          await service.scheduleTask(otherTask);
+          final otherIds = pending.keys.toSet();
+          calls.clear();
+          await service.scheduleTask(task(reminders));
+          final alarms = calls
+              .where((call) => call.method == 'zonedSchedule')
+              .map((call) => call.arguments as Map)
+              .toList();
+          final expected = type == TaskType.todo ? 2 : 4;
+          expect(alarms, hasLength(expected));
+          expect(
+            alarms.map((alarm) => alarm['id']).toSet(),
+            hasLength(expected),
+          );
+          for (final alarm in alarms) {
+            expect(alarm['title'], 'Exercise');
+            expect(alarm['body'], 'Twenty minutes');
+            expect(alarm['payload'], 'multiple');
+          }
+          if (type == TaskType.todo) {
+            expect(
+              alarms.map(
+                (alarm) =>
+                    DateTime.parse(alarm['scheduledDateTime'] as String).day,
+              ),
+              [tomorrow.day, nextDay.day],
+            );
+          }
+          await service.scheduleTask(task([reminders.first]));
+          expect(
+            pending.values.where((alarm) => alarm['payload'] == 'multiple'),
+            hasLength(type == TaskType.todo ? 1 : 2),
+          );
+          expect(pending.keys.toSet().containsAll(otherIds), isTrue);
+          await service.scheduleTask(task([]));
+          expect(pending.keys.toSet(), otherIds);
+        },
+      );
+    }
+
+    test(
+      'completed To-do cancels all reminders and expired dates never roll over',
+      () async {
+        final service = await NotificationService.open();
+        final task = Task(
+          id: 'todo',
+          type: TaskType.todo,
+          title: 'Todo',
+          notes: '',
+          schedule: const TodoSchedule(),
+          reminders: [
+            TaskReminder(
+              id: 'past',
+              time: const ReminderTime(hour: 9, minute: 0),
+              date: DateTime.now().subtract(const Duration(days: 1)),
+            ),
+            TaskReminder(
+              id: 'future',
+              time: const ReminderTime(hour: 9, minute: 0),
+              date: DateTime.now().add(const Duration(days: 1)),
+            ),
+            TaskReminder(
+              id: 'later',
+              time: const ReminderTime(hour: 12, minute: 0),
+              date: DateTime.now().add(const Duration(days: 2)),
+            ),
+          ],
+        );
+        await service.scheduleTask(task);
+        expect(pending, hasLength(2));
+        task.setCompletedOn(DateTime.now(), completed: true);
+        calls.clear();
+        await service.scheduleTask(task);
+        expect(pending, isEmpty);
+        expect(calls.where((call) => call.method == 'zonedSchedule'), isEmpty);
       },
     );
   });

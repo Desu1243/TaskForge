@@ -19,12 +19,9 @@ Task monthly({Set<int> days = const {15, 31}, DateTime? createdAt}) => Task(
   notes: 'Keep notes',
   schedule: DailySchedule.monthly(activeMonthDays: days),
   createdAt: createdAt,
-  reminder: const TaskReminder(
-    time: ReminderTime(hour: 9, minute: 15),
-    title: '',
-    message: '',
-    activeMonthDays: {31},
-  ),
+  reminders: const [
+    TaskReminder(id: 'morning', time: ReminderTime(hour: 9, minute: 15)),
+  ],
 );
 
 void main() {
@@ -83,8 +80,8 @@ void main() {
       final restored = (await storage.loadAll())[TaskType.daily]!.single;
       expect((restored.schedule as DailySchedule).isMonthly, isTrue);
       expect((restored.schedule as DailySchedule).activeMonthDays, {15, 31});
-      expect(restored.reminder!.activeMonthDays, {31});
-      expect(restored.reminder!.activeWeekdays, isNull);
+      expect(restored.reminders.single.id, 'morning');
+      expect(restored.reminders.single.time.hour, 9);
       final json = restored.toJson();
       json['schedule'] = {
         'kind': 'daily',
@@ -136,7 +133,7 @@ void main() {
     },
   );
 
-  testWidgets('monthly form loads days and reminder subset, then saves edits', (
+  testWidgets('monthly form preserves reminders when active days change', (
     tester,
   ) async {
     SharedPreferencesAsyncPlatform.instance =
@@ -169,7 +166,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     expect(find.text('Active days of the month'), findsOneWidget);
-    // Deselect the 15th; the reminder continues to use the 31st.
+    // Reminders follow the task's remaining active days.
     final day15 = find
         .byWidgetPredicate(
           (widget) =>
@@ -185,8 +182,8 @@ void main() {
     await tester.tap(find.byTooltip('Save'));
     await tester.pumpAndSettle();
     expect((saved!.schedule as DailySchedule).activeMonthDays, {31});
-    expect(saved!.reminder!.activeMonthDays, {31});
-    expect(saved!.reminder!.activeWeekdays, isNull);
+    expect(saved!.reminders.single.id, 'morning');
+    expect(saved!.reminders.single.time.minute, 15);
     expect(saved!.notes, 'Keep notes');
     expect(tester.takeException(), isNull);
   });

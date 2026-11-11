@@ -10,19 +10,11 @@ class ReminderTime {
 }
 
 class TaskReminder {
-  const TaskReminder({
-    required this.time,
-    required this.title,
-    required this.message,
-    this.activeWeekdays,
-    this.activeMonthDays,
-  });
+  const TaskReminder({required this.id, required this.time, this.date});
 
+  final String id;
   final ReminderTime time;
-  final String title;
-  final String message;
-  final Set<int>? activeWeekdays;
-  final Set<int>? activeMonthDays;
+  final DateTime? date;
 }
 
 sealed class TaskSchedule {
@@ -105,7 +97,7 @@ class Task {
     required this.title,
     required this.notes,
     required this.schedule,
-    this.reminder,
+    List<TaskReminder>? reminders,
     this.habitCounters,
     this.isCompleted = false,
     this.completedAt,
@@ -116,6 +108,7 @@ class Task {
     List<TaskHistoryEntry>? history,
     Set<String>? tagIds,
   }) : createdAt = createdAt ?? DateTime.now(),
+       reminders = List.unmodifiable(reminders ?? const []),
        tagIds = Set.of(tagIds ?? const {}),
        history = history ?? [];
 
@@ -124,7 +117,7 @@ class Task {
   final String title;
   final String notes;
   final TaskSchedule schedule;
-  final TaskReminder? reminder;
+  final List<TaskReminder> reminders;
   final HabitCounters? habitCounters;
   bool isCompleted;
   DateTime? completedAt;
@@ -263,14 +256,14 @@ class Task {
   }
 
   Map<String, dynamic> toJson() => {
-    'version': 1,
+    'version': 2,
     'id': id,
     'type': type.name,
     'title': title,
     'notes': notes,
     'tagIds': tagIds.toList(),
     'schedule': _scheduleToJson(schedule),
-    'reminder': reminder == null ? null : _reminderToJson(reminder!),
+    'reminders': reminders.map(_reminderToJson).toList(),
     'habitCounters': habitCounters == null
         ? null
         : {
@@ -288,7 +281,9 @@ class Task {
 
   factory Task.fromJson(Map<String, dynamic> json) {
     final type = TaskType.values.byName(json['type'] as String);
-    final reminderJson = json['reminder'];
+    final schedule = _scheduleFromJson(
+      Map<String, dynamic>.from(json['schedule'] as Map),
+    );
     final countersJson = json['habitCounters'];
     final historyJson = json['history'] as List<dynamic>? ?? const [];
 
@@ -300,12 +295,15 @@ class Task {
       tagIds: (json['tagIds'] as List<dynamic>? ?? const [])
           .whereType<String>()
           .toSet(),
-      schedule: _scheduleFromJson(
-        Map<String, dynamic>.from(json['schedule'] as Map),
-      ),
-      reminder: reminderJson == null
-          ? null
-          : _reminderFromJson(Map<String, dynamic>.from(reminderJson as Map)),
+      schedule: schedule,
+      reminders: json.containsKey('reminders')
+          ? (json['reminders'] as List<dynamic>? ?? const [])
+                .map(
+                  (item) =>
+                      _reminderFromJson(Map<String, dynamic>.from(item as Map)),
+                )
+                .toList()
+          : _migrateLegacyReminder(json['reminder'], type, schedule),
       habitCounters: countersJson == null
           ? null
           : HabitCounters(
@@ -376,31 +374,52 @@ class Task {
   }
 
   static Map<String, dynamic> _reminderToJson(TaskReminder reminder) => {
+    'id': reminder.id,
     'hour': reminder.time.hour,
     'minute': reminder.time.minute,
-    'title': reminder.title,
-    'message': reminder.message,
-    'activeWeekdays': reminder.activeWeekdays == null
-        ? null
-        : (reminder.activeWeekdays!.toList()..sort()),
-    'activeMonthDays': reminder.activeMonthDays == null
-        ? null
-        : (reminder.activeMonthDays!.toList()..sort()),
+    'date': reminder.date?.toIso8601String(),
   };
 
   static TaskReminder _reminderFromJson(Map<String, dynamic> json) =>
       TaskReminder(
+        id: json['id'] as String,
         time: ReminderTime(
           hour: (json['hour'] as num).toInt(),
           minute: (json['minute'] as num).toInt(),
         ),
-        title: json['title'] as String? ?? '',
-        message: json['message'] as String? ?? '',
-        activeWeekdays: (json['activeWeekdays'] as List<dynamic>?)
-            ?.map((value) => (value as num).toInt())
-            .toSet(),
-        activeMonthDays: _monthDaysFromJson(json['activeMonthDays']),
+        date: _optionalDate(json['date']),
       );
+
+  static List<TaskReminder> _migrateLegacyReminder(
+    Object? value,
+    TaskType type,
+    TaskSchedule schedule,
+  ) {
+    if (value == null) return [];
+    final json = Map<String, dynamic>.from(value as Map);
+    final time = ReminderTime(
+      hour: (json['hour'] as num).toInt(),
+      minute: (json['minute'] as num).toInt(),
+    );
+    DateTime? date;
+    if (type == TaskType.todo) {
+      date = schedule is TodoSchedule ? schedule.dueDate : null;
+      if (date == null) {
+        final now = DateTime.now();
+        final todayAt = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          time.hour,
+          time.minute,
+        );
+        date = todayAt.isAfter(now)
+            ? dateOnly(now)
+            : DateTime(now.year, now.month, now.day + 1);
+      }
+    }
+    return [TaskReminder(id: 'legacy', time: time, date: date)];
+  }
 
   static Set<int>? _monthDaysFromJson(Object? value) => value == null
       ? null

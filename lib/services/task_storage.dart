@@ -95,7 +95,11 @@ class TaskStorage {
         final decoded = jsonDecode(await entity.readAsString());
         if (decoded is! Map) continue;
         final task = Task.fromJson(Map<String, dynamic>.from(decoded));
-        if (task.type == type) result.add(task);
+        if (task.type == type) {
+          result.add(task);
+          // Persist migration once, especially the date of an old undated To-do reminder.
+          if (!decoded.containsKey('reminders')) await saveTask(task);
+        }
       } on Object {
         // Ignore a damaged task file so the remaining tasks can still load.
       }

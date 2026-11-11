@@ -224,12 +224,12 @@ class NotificationService {
 
   Future<void> cancelTask(Task task) async {
     if (!_available) return;
-    for (var slot = 0; slot <= 7; slot++) {
-      await _plugin.cancel(id: _notificationId(task.id, slot));
-    }
-    // Cancel both schedule types so switching monthly/weekly leaves no old alarms.
-    for (var day = 1; day <= 31; day++) {
-      await _plugin.cancel(id: _monthlyNotificationId(task.id, day));
+    // Read scheduled alarms, including reminders removed from the edited task.
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final notification in pending) {
+      if (notification.payload == task.id) {
+        await _plugin.cancel(id: notification.id);
+      }
     }
   }
 
@@ -240,20 +240,22 @@ class NotificationService {
 
   Future<void> _scheduleTaskWithoutCancelling(Task task) async {
     if (task.type == TaskType.todo && task.isCompleted) return;
-    final reminder = task.reminder;
-    if (reminder == null) return;
+    for (final reminder in task.reminders) {
+      await _scheduleReminder(task, reminder);
+    }
+  }
 
-    final title = reminder.title.trim().isEmpty
-        ? task.title
-        : reminder.title.trim();
-    final trimmedMessage = reminder.message.trim();
-    final body = trimmedMessage.isEmpty ? null : trimmedMessage;
+  Future<void> _scheduleReminder(Task task, TaskReminder reminder) async {
+    final title = task.title;
+    final notes = task.notes.trim();
+    final body = notes.isEmpty ? null : notes;
+    final reminderKey = '${task.id}:reminder:${reminder.id}';
 
     if (task.type == TaskType.todo) {
-      final scheduledDate = _todoNotificationDate(task, reminder);
+      final scheduledDate = _todoNotificationDate(reminder);
       if (scheduledDate == null) return;
       await _plugin.zonedSchedule(
-        id: _notificationId(task.id, 0),
+        id: _notificationId(reminderKey, 0),
         title: title,
         body: body,
         scheduledDate: scheduledDate,
@@ -266,11 +268,10 @@ class NotificationService {
 
     final schedule = task.schedule;
     if (schedule is DailySchedule && schedule.isMonthly) {
-      final days = (reminder.activeMonthDays ?? schedule.activeMonthDays!)
-          .intersection(schedule.activeMonthDays!);
+      final days = schedule.activeMonthDays!;
       for (final day in days) {
         await _plugin.zonedSchedule(
-          id: _monthlyNotificationId(task.id, day),
+          id: _monthlyNotificationId(reminderKey, day),
           title: title,
           body: body,
           scheduledDate: nextMonthlyReminderDate(
@@ -287,10 +288,10 @@ class NotificationService {
       return;
     }
 
-    final weekdays = reminder.activeWeekdays ?? _scheduledWeekdays(task);
+    final weekdays = _scheduledWeekdays(task);
     for (final weekday in weekdays) {
       await _plugin.zonedSchedule(
-        id: _notificationId(task.id, weekday),
+        id: _notificationId(reminderKey, weekday),
         title: title,
         body: body,
         scheduledDate: _nextWeekdayAt(weekday, reminder.time),
@@ -302,41 +303,19 @@ class NotificationService {
     }
   }
 
-  tz.TZDateTime? _todoNotificationDate(Task task, TaskReminder reminder) {
+  tz.TZDateTime? _todoNotificationDate(TaskReminder reminder) {
     final now = tz.TZDateTime.now(tz.local);
-    final schedule = task.schedule;
-    if (schedule is TodoSchedule && schedule.dueDate != null) {
-      final dueDate = schedule.dueDate!;
-      final result = tz.TZDateTime(
-        tz.local,
-        dueDate.year,
-        dueDate.month,
-        dueDate.day,
-        reminder.time.hour,
-        reminder.time.minute,
-      );
-      return result.isAfter(now) ? result : null;
-    }
-
-    var result = tz.TZDateTime(
+    final date = reminder.date;
+    if (date == null) return null;
+    final result = tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
+      date.year,
+      date.month,
+      date.day,
       reminder.time.hour,
       reminder.time.minute,
     );
-    if (!result.isAfter(now)) {
-      result = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day + 1,
-        reminder.time.hour,
-        reminder.time.minute,
-      );
-    }
-    return result;
+    return result.isAfter(now) ? result : null;
   }
 
   tz.TZDateTime _nextWeekdayAt(int weekday, ReminderTime time) {

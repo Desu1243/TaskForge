@@ -26,8 +26,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
-  final _reminderTitleController = TextEditingController();
-  final _reminderMessageController = TextEditingController();
   final _targetController = TextEditingController(text: '1');
   final _positiveCountController = TextEditingController(text: '0');
   final _negativeCountController = TextEditingController(text: '0');
@@ -41,25 +39,18 @@ class _AddTaskPageState extends State<AddTaskPage> {
     DateTime.saturday,
     DateTime.sunday,
   };
-  final Set<int> _reminderWeekdays = {
-    DateTime.monday,
-    DateTime.tuesday,
-    DateTime.wednesday,
-    DateTime.thursday,
-    DateTime.friday,
-    DateTime.saturday,
-    DateTime.sunday,
-  };
+  final List<TaskReminder> _reminders = [];
+  final _reminderEditorKey = GlobalKey();
+  String? _editingReminderId;
+  DateTime _reminderDate = Task.dateOnly(DateTime.now());
 
   DateTime? _dueDate;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   HabitPeriod _habitPeriod = HabitPeriod.week;
-  bool _reminderEnabled = false;
   bool _positiveCounterEnabled = true;
   bool _negativeCounterEnabled = true;
   bool _dailyMonthly = false;
   final Set<int> _activeMonthDays = {DateTime.now().day};
-  final Set<int> _reminderMonthDays = {for (var day = 1; day <= 31; day++) day};
   Set<String> _tagIds = {};
 
   bool get _isMonthlyDaily =>
@@ -107,26 +98,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       _habitPeriod = schedule.period;
     }
 
-    final reminder = task.reminder;
-    if (reminder != null) {
-      _reminderEnabled = true;
-      _reminderTime = TimeOfDay(
-        hour: reminder.time.hour,
-        minute: reminder.time.minute,
-      );
-      _reminderTitleController.text = reminder.title;
-      _reminderMessageController.text = reminder.message;
-      if (reminder.activeWeekdays != null) {
-        _reminderWeekdays
-          ..clear()
-          ..addAll(reminder.activeWeekdays!);
-      }
-      if (reminder.activeMonthDays != null) {
-        _reminderMonthDays
-          ..clear()
-          ..addAll(reminder.activeMonthDays!);
-      }
-    }
+    _reminders.addAll(task.reminders);
 
     final counters = task.habitCounters;
     if (counters != null) {
@@ -146,8 +118,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void dispose() {
     _titleController.dispose();
     _notesController.dispose();
-    _reminderTitleController.dispose();
-    _reminderMessageController.dispose();
     _targetController.dispose();
     _positiveCountController.dispose();
     _negativeCountController.dispose();
@@ -172,7 +142,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       context: context,
       initialTime: _reminderTime,
     );
-    if (time != null) setState(() => _reminderTime = time);
+    if (time != null && mounted) setState(() => _reminderTime = time);
   }
 
   void _adjustReminderTime(int minutes) {
@@ -228,20 +198,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final activeDays = _isMonthlyDaily ? _activeMonthDays : _activeWeekdays;
-    final reminderDays = _isMonthlyDaily
-        ? _reminderMonthDays.intersection(_activeMonthDays)
-        : _reminderWeekdays.intersection(_activeWeekdays);
     if (widget.taskType != TaskType.todo && activeDays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select at least one active day.')),
-      );
-      return;
-    }
-    if (_reminderEnabled &&
-        widget.taskType != TaskType.todo &&
-        reminderDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one reminder day.')),
       );
       return;
     }
@@ -283,21 +242,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               negativeEnabled: _negativeCounterEnabled,
             )
           : null,
-      reminder: _reminderEnabled
-          ? TaskReminder(
-              time: ReminderTime(
-                hour: _reminderTime.hour,
-                minute: _reminderTime.minute,
-              ),
-              title: _reminderTitleController.text.trim(),
-              message: _reminderMessageController.text.trim(),
-              activeWeekdays:
-                  widget.taskType == TaskType.todo || _isMonthlyDaily
-                  ? null
-                  : reminderDays,
-              activeMonthDays: _isMonthlyDaily ? reminderDays : null,
-            )
-          : null,
+      reminders: _reminders,
       isCompleted: editedTask?.isCompleted ?? false,
       completedAt: editedTask?.completedAt,
       lastCompletedDate: editedTask?.lastCompletedDate,
@@ -408,57 +353,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               _buildHabitCounters(),
             ],
             const SizedBox(height: 24),
-            Text('Reminder', style: Theme.of(context).textTheme.titleLarge),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Enable reminder'),
-              subtitle: widget.settings.notificationsEnabled
-                  ? null
-                  : const Text('Notifications are disabled in Settings'),
-              value: _reminderEnabled,
-              onChanged: widget.settings.notificationsEnabled
-                  ? (value) => setState(() => _reminderEnabled = value)
-                  : null,
-            ),
-            if (_reminderEnabled) ...[
-              if (widget.taskType != TaskType.todo) ...[
-                const Text('Reminder days'),
-                const SizedBox(height: 8),
-                if (_isMonthlyDaily)
-                  _buildMonthDayPicker(
-                    selectedDays: _reminderMonthDays,
-                    allowedDays: _activeMonthDays,
-                  )
-                else
-                  _buildWeekdayPicker(
-                    selectedWeekdays: _reminderWeekdays,
-                    allowedWeekdays: _activeWeekdays,
-                  ),
-                const SizedBox(height: 8),
-              ],
-              const Text('Time'),
-              const SizedBox(height: 8),
-              _buildReminderTimeControls(),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _reminderTitleController,
-                decoration: InputDecoration(
-                  labelText: 'Notification title',
-                  hintText: _titleController.text.trim().isEmpty
-                      ? 'Task title (default)'
-                      : _titleController.text.trim(),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _reminderMessageController,
-                decoration: const InputDecoration(
-                  labelText: 'Notification message',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+            _buildReminders(),
             const SizedBox(height: 24),
           ],
         ),
@@ -483,6 +378,220 @@ class _AddTaskPageState extends State<AddTaskPage> {
               icon: const Icon(Icons.clear),
             ),
       onTap: _pickDueDate,
+    );
+  }
+
+  Future<void> _pickReminderDate() async {
+    final date = await showDatePicker(
+      context: context,
+      locale: widget.settings.firstDayOfWeek == FirstDayOfWeek.monday
+          ? const Locale('en', 'GB')
+          : const Locale('en', 'US'),
+      initialDate: _reminderDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (date != null && mounted) setState(() => _reminderDate = date);
+  }
+
+  void _editReminder(TaskReminder reminder) {
+    setState(() {
+      _editingReminderId = reminder.id;
+      _reminderTime = TimeOfDay(
+        hour: reminder.time.hour,
+        minute: reminder.time.minute,
+      );
+      _reminderDate = reminder.date ?? Task.dateOnly(DateTime.now());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final editorContext = _reminderEditorKey.currentContext;
+      if (mounted && editorContext != null) {
+        Scrollable.ensureVisible(
+          editorContext,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
+    });
+  }
+
+  void _resetReminderEditor() {
+    _editingReminderId = null;
+    _reminderTime = widget.settings.defaultReminderTimeAt(DateTime.now());
+    _reminderDate = Task.dateOnly(DateTime.now());
+  }
+
+  void _addOrUpdateReminder() {
+    final isTodo = widget.taskType == TaskType.todo;
+    final date = isTodo ? _reminderDate : null;
+    if (isTodo) {
+      final scheduled = DateTime(
+        date!.year,
+        date.month,
+        date.day,
+        _reminderTime.hour,
+        _reminderTime.minute,
+      );
+      if (!scheduled.isAfter(DateTime.now())) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Choose a future reminder date and time.'),
+          ),
+        );
+        return;
+      }
+    }
+    if (_reminders.any(
+      (reminder) =>
+          reminder.id != _editingReminderId &&
+          reminder.time.hour == _reminderTime.hour &&
+          reminder.time.minute == _reminderTime.minute &&
+          (reminder.date == null
+              ? date == null
+              : date != null && Task.dateOnly(reminder.date!) == date),
+    )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A reminder is already set for this time.'),
+        ),
+      );
+      return;
+    }
+    final reminder = TaskReminder(
+      id:
+          _editingReminderId ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
+      time: ReminderTime(
+        hour: _reminderTime.hour,
+        minute: _reminderTime.minute,
+      ),
+      date: date,
+    );
+    setState(() {
+      final index = _reminders.indexWhere((item) => item.id == reminder.id);
+      if (index < 0) {
+        _reminders.add(reminder);
+      } else {
+        _reminders[index] = reminder;
+      }
+      _reminders.sort((a, b) {
+        final dates = (a.date ?? DateTime(2000)).compareTo(
+          b.date ?? DateTime(2000),
+        );
+        return dates != 0
+            ? dates
+            : (a.time.hour * 60 + a.time.minute).compareTo(
+                b.time.hour * 60 + b.time.minute,
+              );
+      });
+      // Keep the chosen time/date ready for the next quick adjustment.
+      _editingReminderId = null;
+    });
+  }
+
+  Widget _buildReminders() {
+    final colors = Theme.of(context).colorScheme;
+    final editing = _editingReminderId != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Reminders', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 8),
+        if (!widget.settings.notificationsEnabled) ...[
+          const Text('Notifications are disabled in Settings.'),
+          const SizedBox(height: 8),
+        ],
+        if (_reminders.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('No reminders set'),
+          ),
+        for (final reminder in _reminders)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              key: ValueKey('reminder-${reminder.id}'),
+              tileColor: colors.surfaceContainer,
+              selectedTileColor: colors.primaryContainer,
+              selected: reminder.id == _editingReminderId,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              leading: const Icon(Icons.notifications_outlined),
+              title: Text(
+                TimeOfDay(
+                  hour: reminder.time.hour,
+                  minute: reminder.time.minute,
+                ).format(context),
+              ),
+              subtitle: reminder.date == null
+                  ? null
+                  : Text(
+                      MaterialLocalizations.of(
+                        context,
+                      ).formatMediumDate(reminder.date!),
+                    ),
+              trailing: const Icon(Icons.edit_outlined, size: 20),
+              onTap: () => _editReminder(reminder),
+            ),
+          ),
+        if (widget.taskType != TaskType.todo) ...[
+          const Text("Reminders repeat on the task's active days."),
+          const SizedBox(height: 12),
+        ],
+        Column(
+          key: _reminderEditorKey,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(editing ? 'Edit reminder' : 'Time'),
+            const SizedBox(height: 8),
+            _buildReminderTimeControls(),
+            if (widget.taskType == TaskType.todo)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Reminder date'),
+                trailing: Text(
+                  MaterialLocalizations.of(
+                    context,
+                  ).formatMediumDate(_reminderDate),
+                ),
+                onTap: _pickReminderDate,
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (editing) ...[
+                  IconButton(
+                    tooltip: 'Delete reminder',
+                    color: colors.error,
+                    onPressed: () => setState(() {
+                      _reminders.removeWhere(
+                        (reminder) => reminder.id == _editingReminderId,
+                      );
+                      _resetReminderEditor();
+                    }),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(_resetReminderEditor),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _addOrUpdateReminder,
+                    icon: Icon(editing ? Icons.check : Icons.add),
+                    label: Text(editing ? 'Save reminder' : 'Add reminder'),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ],
     );
   }
 

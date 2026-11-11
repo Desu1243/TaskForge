@@ -43,10 +43,12 @@ Dailies and habits provide a dedicated history screen.
 
 Tasks with reminders are scheduled using Android local notifications.
 
-- Habit and Daily reminders repeat at the selected time on selected weekdays.
-- To-do reminders use the due date. Without a due date, the next occurrence of the selected time is used.
-- A blank notification title falls back to the task title.
-- A blank message produces a notification without body text.
+- Each task can have multiple reminders, added with the existing time picker and quick time adjustments.
+- Habit and Daily reminders repeat on the task's active weekdays (or selected month days for monthly Dailies).
+- Each To-do reminder has its own date and time, independent of the task's due date. Past reminders do not repeat, and completing a To-do cancels all its future reminders.
+- Notification titles use the task title; body text uses the task notes, or is omitted when notes are empty.
+- Tap a reminder in the task form to edit or delete it, then save the task to persist the list.
+- Existing single reminders are automatically migrated to the new list format.
 - Reminder schedules are updated when a task is created, edited, or deleted.
 - Scheduled reminders are restored after a device restart.
 - Device time zones and daylight-saving changes are handled by timezone-aware scheduling.

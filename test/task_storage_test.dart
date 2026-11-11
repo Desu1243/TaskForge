@@ -24,12 +24,9 @@ void main() {
         positiveEnabled: true,
         negativeEnabled: true,
       ),
-      reminder: const TaskReminder(
-        time: ReminderTime(hour: 18, minute: 30),
-        title: 'Exercise',
-        message: 'Time to move',
-        activeWeekdays: {1, 3, 5},
-      ),
+      reminders: const [
+        TaskReminder(id: 'evening', time: ReminderTime(hour: 18, minute: 30)),
+      ],
       createdAt: createdAt,
     );
     task.addHabitPoint(createdAt, positive: true);
@@ -48,7 +45,7 @@ void main() {
     expect(restored.history.single.positiveCount, 1);
     expect(restored.history.single.negativeCount, 1);
     expect((restored.schedule as HabitSchedule).activeWeekdays, {1, 3, 5});
-    expect(restored.reminder!.time.hour, 18);
+    expect(restored.reminders.single.time.hour, 18);
 
     await storage.deleteTask(restored);
     final afterDelete = await storage.loadAll();
